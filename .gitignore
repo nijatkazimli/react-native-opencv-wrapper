@@ -53,9 +53,9 @@ coverage/
 .pnp.*
 
 # iOS
-ios/Pods/
-ios/build/
-ios/.xcode.env.local
+**/ios/Pods/
+**/ios/build/
+**/ios/.xcode.env.local
 *.xcuserstate
 xcuserdata/
 DerivedData/
@@ -65,18 +65,22 @@ DerivedData/
 *.dSYM
 
 # Android
-android/.gradle/
-android/build/
-android/app/build/
-android/captures/
-android/local.properties
-android/.idea/
+**/android/.gradle/
+**/android/build/
+**/android/app/build/
+**/android/captures/
+**/android/local.properties
+**/android/.idea/
 *.keystore
 !debug.keystore
 .gradle/
 
 # CocoaPods
 Podfile.lock.bak
+
+# Bundler (Ruby) — used for CocoaPods toolchain pinning
+**/vendor/bundle/
+**/.bundle/
 
 # Codegen output (regenerated on build)
 **/generated/source/codegen/
