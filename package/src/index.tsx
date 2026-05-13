@@ -11,10 +11,7 @@ export function getOpenCVVersion(): string {
  *
  * Supported formats follow `cv::imread` / `cv::imwrite` (jpg, png, bmp, ...).
  */
-export function toGray(
-  inputPath: string,
-  outputPath: string
-): Promise<string> {
+export function toGray(inputPath: string, outputPath: string): Promise<string> {
   return NativeOpenCV.toGray(inputPath, outputPath);
 }
 

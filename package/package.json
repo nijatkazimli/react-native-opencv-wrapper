@@ -11,11 +11,27 @@
   "author": "Nijat Kazimli <nijat@example.com> (https://github.com/nijatkazimli)",
   "license": "UNLICENSED",
   "homepage": "https://github.com/nijatkazimli/react-native-opencv-wrapper#readme",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
   "devDependencies": {
+    "@eslint/js": "^9.15.0",
     "@react-native/babel-preset": "0.85.3",
     "@types/react": "^19.2.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "prettier": "^3.3.3",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.85.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.15.0"
   },
   "create-react-native-library": {
     "type": "turbo-module",
