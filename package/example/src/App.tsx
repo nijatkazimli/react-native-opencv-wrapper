@@ -16,19 +16,18 @@ import {
   toGray,
 } from '@nijatk/react-native-opencv-wrapper';
 
-// A tiny built-in test image (a checkerboard PNG, base64-encoded) so the
-// example needs no extra assets / camera permissions.
+// A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
+// the example needs no extra assets / camera permissions.
 const SAMPLE_PNG_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAACQd1PeAAAAGklEQVR4nGNkYGD4z0AGYCJL16jGUY3DRiMAaSIBAgAVbmoAAAAASUVORK5CYII=';
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeUlEQVR42u3XsQ2AMAxFwYRpPIzH9TgeJguEigIiLmWU5qQv0JsRMXanqrb3mfmp99c4/AAAAAC8e2Z3H/G9v3tvQgAAAADP/gN6wIQAAAD0gB4wIQAAAD2gB0wIAABAD+gBEwIAANADesCEAAAA9IAeMCEAAIDfABbGnWCpH4DNoAAAAABJRU5ErkJggg==';
 
 const dir = RNFS.CachesDirectoryPath;
 const inputPath = `${dir}/sample.png`;
 
 async function ensureSampleImage() {
-  const exists = await RNFS.exists(inputPath);
-  if (!exists) {
-    await RNFS.writeFile(inputPath, SAMPLE_PNG_BASE64, 'base64');
-  }
+  // Always overwrite — base64 contents may have changed across app updates,
+  // and a stale corrupt copy would silently break every op.
+  await RNFS.writeFile(inputPath, SAMPLE_PNG_BASE64, 'base64');
 }
 
 type Result = { label: string; path: string };
