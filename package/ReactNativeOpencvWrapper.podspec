@@ -8,32 +8,35 @@ opencv_cfg = (package["reactNativeOpenCV"] || {})
 # ---------------------------------------------------------------------------
 # This wrapper depends on OpenCV at link time. We support two modes:
 #
-#   1. "bundled" (default) - We declare a CocoaPods dependency on the official
-#      `OpenCV` pod (which ships the prebuilt opencv2.framework from
-#      opencv.org). The host app does not have to do anything.
+#   1. "bundled" (default) - We declare a CocoaPods dependency on a prebuilt
+#      OpenCV pod (default: `OpenCV-Dynamic-Framework`, which ships an
+#      xcframework built from opencv.org sources and is kept up to date with
+#      the 4.x line). The host app does not have to do anything.
 #
 #   2. "host"   - The host app already provides OpenCV (e.g. via another pod
-#      such as `OpenCV2`, `react-native-vision-camera`, or a hand-vendored
-#      framework). In this case we skip declaring the dependency and just
+#      such as `OpenCV`, `react-native-vision-camera`, or a hand-vendored
+#      xcframework). In this case we skip declaring the dependency and just
 #      link against whatever symbols the host already exposes.
 #
 # Selection (in order of precedence):
-#   * Environment variable  RN_OPENCV_MODE = "bundled" | "host"
+#   * Environment variable  RN_OPENCV_MODE  = "bundled" | "host"
 #   * package.json field    reactNativeOpenCV.mode
 #   * Auto-detect: if the host Podfile already declares a pod whose name
 #     starts with "OpenCV", switch to "host". Otherwise use "bundled".
 #
-# You can pin the OpenCV version with RN_OPENCV_VERSION or
-# `reactNativeOpenCV.version` in package.json (default below).
+# Pod name + version can be overridden too:
+#   * RN_OPENCV_POD     / reactNativeOpenCV.pod
+#   * RN_OPENCV_VERSION / reactNativeOpenCV.version
 # ---------------------------------------------------------------------------
 
+DEFAULT_OPENCV_POD     = "OpenCV-Dynamic-Framework"
 DEFAULT_OPENCV_VERSION = "~> 4.10"
 
-def rn_opencv_mode(opencv_cfg)
+resolve_opencv_mode = lambda do |cfg|
   return ENV["RN_OPENCV_MODE"] if ENV["RN_OPENCV_MODE"] && !ENV["RN_OPENCV_MODE"].empty?
-  return opencv_cfg["mode"]    if opencv_cfg["mode"]
+  return cfg["mode"]           if cfg["mode"]
 
-  podfile = Pod::Config.instance.podfile rescue nil
+  podfile = (Pod::Config.instance.podfile rescue nil)
   if podfile
     host_provides = podfile.dependencies.any? { |d| d.name.to_s.start_with?("OpenCV") }
     return "host" if host_provides
@@ -42,10 +45,11 @@ def rn_opencv_mode(opencv_cfg)
   "bundled"
 end
 
-mode = rn_opencv_mode(opencv_cfg)
+mode           = resolve_opencv_mode.call(opencv_cfg)
+opencv_pod     = ENV["RN_OPENCV_POD"]     || opencv_cfg["pod"]     || DEFAULT_OPENCV_POD
 opencv_version = ENV["RN_OPENCV_VERSION"] || opencv_cfg["version"] || DEFAULT_OPENCV_VERSION
 
-Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode}" rescue nil
+(Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})" rescue nil)
 
 Pod::Spec.new do |s|
   s.name         = "ReactNativeOpencvWrapper"
@@ -68,7 +72,7 @@ Pod::Spec.new do |s|
   }
 
   if mode == "bundled"
-    s.dependency "OpenCV", opencv_version
+    s.dependency opencv_pod, opencv_version
   end
 
   install_modules_dependencies(s)
