@@ -1,0 +1,39 @@
+diff --git a/cocoapods-patch-20260513-68267-zlqzir/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/blenders.hpp b/Pods/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/blenders.hpp
+index ec35aa7..3d0c35a 100644
+--- a/cocoapods-patch-20260513-68267-zlqzir/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/blenders.hpp
++++ b/Pods/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/blenders.hpp
+@@ -65,7 +65,7 @@ class CV_EXPORTS_W Blender
+ public:
+     virtual ~Blender() {}
+ 
+-    enum { NO, FEATHER, MULTI_BAND };
++    enum { FEATHER, MULTI_BAND };
+     CV_WRAP static Ptr<Blender> createDefault(int type, bool try_gpu = false);
+ 
+     /** @brief Prepares the blender for blending.
+diff --git a/cocoapods-patch-20260513-68267-zlqzir/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/exposure_compensate.hpp b/Pods/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/exposure_compensate.hpp
+index 2b76d09..cfb3d24 100644
+--- a/cocoapods-patch-20260513-68267-zlqzir/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/exposure_compensate.hpp
++++ b/Pods/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/exposure_compensate.hpp
+@@ -63,7 +63,7 @@ public:
+     ExposureCompensator(): updateGain(true) {}
+     virtual ~ExposureCompensator() {}
+ 
+-    enum { NO, GAIN, GAIN_BLOCKS, CHANNELS, CHANNELS_BLOCKS };
++    enum { GAIN, GAIN_BLOCKS, CHANNELS, CHANNELS_BLOCKS };
+     CV_WRAP static Ptr<ExposureCompensator> createDefault(int type);
+ 
+     /**
+diff --git a/cocoapods-patch-20260513-68267-zlqzir/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/seam_finders.hpp b/Pods/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/seam_finders.hpp
+index 71dae7f..7908301 100644
+--- a/cocoapods-patch-20260513-68267-zlqzir/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/seam_finders.hpp
++++ b/Pods/OpenCV/opencv2.framework/Versions/A/Headers/stitching/detail/seam_finders.hpp
+@@ -59,7 +59,7 @@ class CV_EXPORTS_W SeamFinder
+ {
+ public:
+     CV_WRAP  virtual ~SeamFinder() {}
+-    enum { NO, VORONOI_SEAM, DP_SEAM };
++    enum { VORONOI_SEAM, DP_SEAM };
+     /** @brief Estimates seams.
+ 
+     @param src Source images

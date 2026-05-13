@@ -29,8 +29,8 @@ opencv_cfg = (package["reactNativeOpenCV"] || {})
 #   * RN_OPENCV_VERSION / reactNativeOpenCV.version
 # ---------------------------------------------------------------------------
 
-DEFAULT_OPENCV_POD     = "OpenCV-Dynamic-Framework"
-DEFAULT_OPENCV_VERSION = "~> 4.10"
+DEFAULT_OPENCV_POD     = "OpenCV"
+DEFAULT_OPENCV_VERSION = "~> 4.3.0"
 
 resolve_opencv_mode = lambda do |cfg|
   return ENV["RN_OPENCV_MODE"] if ENV["RN_OPENCV_MODE"] && !ENV["RN_OPENCV_MODE"].empty?

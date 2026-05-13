@@ -3,7 +3,7 @@ PODS:
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
   - hermes-engine/Pre-built (250829098.0.10)
-  - OpenCV-Dynamic-Framework (4.10.0.1)
+  - OpenCV (4.3.0)
   - RCTDeprecation (0.85.3)
   - RCTRequired (0.85.3)
   - RCTSwiftUI (0.85.3)
@@ -1790,7 +1790,7 @@ PODS:
   - ReactNativeDependencies (0.85.3)
   - ReactNativeOpencvWrapper (0.0.0):
     - hermes-engine
-    - OpenCV-Dynamic-Framework (~> 4.10)
+    - OpenCV (~> 4.3.0)
     - RCTRequired
     - RCTTypeSafety
     - React-Core
@@ -1896,7 +1896,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - OpenCV-Dynamic-Framework
+    - OpenCV
 
 EXTERNAL SOURCES:
   FBLazyVector:
@@ -2056,7 +2056,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   FBLazyVector: 24e62c765683b8d89006a88a2c8f5cf019f0074d
   hermes-engine: 2716cd24ef0c84207d8279914385fa914d3a74c3
-  OpenCV-Dynamic-Framework: b9483ac40f2e5459231f5d140f1fb754ec605e2b
+  OpenCV: 681e0451c1e54c5930a8922277f817ed5d5ab459
   RCTDeprecation: a4c521821fab57cbb125b36effe84d897d0dfa12
   RCTRequired: 9f3a7e5645d4bc3f551593de7550bb66ab6e42bc
   RCTSwiftUI: 239ed2eb9e73de5a6f518810630f0c95e01c8702
@@ -2128,10 +2128,10 @@ SPEC CHECKSUMS:
   ReactCodegen: c8f81e6c6f762dcf442a6203a1fb58f7dafc8014
   ReactCommon: 7dfc3250793bf36cf221096ff59e1179e13eef7f
   ReactNativeDependencies: f594c5a14f3d23300b6f54934b8b1dccc6bd48b7
-  ReactNativeOpencvWrapper: 98663312b525e23b9763de7aa85c0cef0eb46dd2
+  ReactNativeOpencvWrapper: 6f05148a109c59dbb88b695fa9915ab5cf2d7aab
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   Yoga: 77dfa8673de2874e1855002ae59c68b8be9b007b
 
-PODFILE CHECKSUM: d582ff38b2037d8103cc9535e07a4fb65d1cb00a
+PODFILE CHECKSUM: 69ee1b32e96c52ea8a906dfeac798d6da62e9bb2
 
 COCOAPODS: 1.15.2
