@@ -10,6 +10,7 @@
     "build:ios": "react-native build-ios --mode Debug"
   },
   "dependencies": {
+    "@nijatk/react-native-opencv-wrapper": "file:..",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-fs": "^2.20.0"

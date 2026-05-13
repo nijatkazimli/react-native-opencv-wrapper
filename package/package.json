@@ -2,11 +2,26 @@
   "name": "@nijatk/react-native-opencv-wrapper",
   "version": "0.0.0",
   "description": "React Native wrapper for OpenCV with optional bundled binaries",
+  "source": "src",
   "main": "src/index",
   "codegenConfig": {
     "name": "ReactNativeOpencvWrapperSpec",
     "type": "modules",
     "jsSrcsDir": "src"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      ["module", { "esm": true }],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json",
+          "esm": true
+        }
+      ]
+    ]
   },
   "author": "Nijat Kazimli <nijat@example.com> (https://github.com/nijatkazimli)",
   "license": "UNLICENSED",
