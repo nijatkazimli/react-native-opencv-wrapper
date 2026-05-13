@@ -1,10 +1,5 @@
-// Import OpenCV BEFORE any React/Foundation headers because some OpenCV
-// headers (`<opencv2/...>`) are sensitive to macros that React Native pulls in
-// (notably `NO` and `YES` from Objective-C, and `check` from Boost).
 #ifdef __cplusplus
 #import <opencv2/opencv.hpp>
-#import <opencv2/imgcodecs.hpp>
-#import <opencv2/imgproc.hpp>
 #endif
 
 #import "ReactNativeOpencvWrapper.h"
