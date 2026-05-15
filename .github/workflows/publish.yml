@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           registry-url: 'https://registry.npmjs.org'
 
@@ -25,7 +25,7 @@ jobs:
         run: npm ci
 
       - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@latest
+        run: npx --yes npm@latest -v && npm i -g npm@latest --force
 
       - name: Lint
         run: npm run lint
