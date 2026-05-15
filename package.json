@@ -1,6 +1,6 @@
 {
   "name": "@nijatk/react-native-opencv-wrapper",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "React Native wrapper for OpenCV with optional bundled binaries",
   "repository": {
     "type": "git",
