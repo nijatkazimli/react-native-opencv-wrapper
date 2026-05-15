@@ -26,6 +26,6 @@
     "verbatimModuleSyntax": true,
     "noEmit": true
   },
-  "include": ["src", "example/src"],
-  "exclude": ["node_modules", "lib", "example/node_modules"]
+  "include": ["src"],
+  "exclude": ["node_modules", "lib", "example", "example/node_modules"]
 }
