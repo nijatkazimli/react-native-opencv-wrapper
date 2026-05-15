@@ -49,7 +49,15 @@ mode           = resolve_opencv_mode.call(opencv_cfg)
 opencv_pod     = ENV["RN_OPENCV_POD"]     || opencv_cfg["pod"]     || DEFAULT_OPENCV_POD
 opencv_version = ENV["RN_OPENCV_VERSION"] || opencv_cfg["version"] || DEFAULT_OPENCV_VERSION
 
-Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})".yellow
+# Only print when CocoaPods has loaded the host Podfile (otherwise
+# auto-detect can't see the host's pods and we'd announce a tentative
+# mode that may flip on a later evaluation). If the user explicitly
+# forced a mode via env var or package.json, print right away.
+forced = !ENV["RN_OPENCV_MODE"].to_s.empty? || !opencv_cfg["mode"].nil?
+podfile_ready = !(Pod::Config.instance.podfile rescue nil).nil?
+if forced || podfile_ready
+  Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})"
+end
 
 Pod::Spec.new do |s|
   s.name         = "ReactNativeOpencvWrapper"
