@@ -49,7 +49,7 @@ mode           = resolve_opencv_mode.call(opencv_cfg)
 opencv_pod     = ENV["RN_OPENCV_POD"]     || opencv_cfg["pod"]     || DEFAULT_OPENCV_POD
 opencv_version = ENV["RN_OPENCV_VERSION"] || opencv_cfg["version"] || DEFAULT_OPENCV_VERSION
 
-(Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})" rescue nil)
+puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})"
 
 Pod::Spec.new do |s|
   s.name         = "ReactNativeOpencvWrapper"
