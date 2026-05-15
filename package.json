@@ -19,8 +19,16 @@
   "files": [
     "lib",
     "src",
+    "ios",
+    "android/src",
+    "android/build.gradle",
+    "ReactNativeOpencvWrapper.podspec",
     "README.md",
-    "package.json"
+    "LICENSE",
+    "package.json",
+    "!android/build",
+    "!**/.DS_Store",
+    "!**/__tests__"
   ],
   "source": "src",
   "main": "./lib/module/index.js",
