@@ -1,9 +1,36 @@
 {
   "name": "@nijatk/react-native-opencv-wrapper",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "React Native wrapper for OpenCV with optional bundled binaries",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nijatkazimli/react-native-opencv-wrapper.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "react-native",
+    "opencv",
+    "opencv4",
+    "react-native-module",
+    "native-module"
+  ],
+  "files": [
+    "lib",
+    "src",
+    "README.md",
+    "package.json"
+  ],
   "source": "src",
-  "main": "src/index",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/typescript/index.d.ts",
+      "default": "./lib/module/index.js"
+    }
+  },
   "codegenConfig": {
     "name": "ReactNativeOpencvWrapperSpec",
     "type": "modules",
@@ -16,25 +43,45 @@
     "source": "src",
     "output": "lib",
     "targets": [
-      ["module", { "esm": true }],
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
       [
         "typescript",
         {
-          "project": "tsconfig.build.json",
-          "esm": true
+          "project": "tsconfig.build.json"
         }
       ]
     ]
   },
   "author": "Nijat Kazimli <nijat@example.com> (https://github.com/nijatkazimli)",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "homepage": "https://github.com/nijatkazimli/react-native-opencv-wrapper#readme",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
   "scripts": {
+    "build": "bob build",
+    "prepare": "husky",
+    "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,jsx,json,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
@@ -45,9 +92,12 @@
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.3.3",
     "react": "19.2.3",
     "react-native": "0.85.3",
+    "react-native-builder-bob": "^0.41.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.15.0"
   },

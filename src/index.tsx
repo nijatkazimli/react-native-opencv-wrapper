@@ -1,4 +1,4 @@
-import NativeOpenCV from './NativeReactNativeOpencvWrapper';
+import NativeOpenCV from "./NativeReactNativeOpencvWrapper";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
 export function getOpenCVVersion(): string {
@@ -27,7 +27,7 @@ export function gaussianBlur(
   inputPath: string,
   outputPath: string,
   kernelSize: number,
-  sigmaX: number = 0
+  sigmaX: number = 0,
 ): Promise<string> {
   return NativeOpenCV.gaussianBlur(inputPath, outputPath, kernelSize, sigmaX);
 }
@@ -39,7 +39,7 @@ export function canny(
   inputPath: string,
   outputPath: string,
   threshold1: number,
-  threshold2: number
+  threshold2: number,
 ): Promise<string> {
   return NativeOpenCV.canny(inputPath, outputPath, threshold1, threshold2);
 }

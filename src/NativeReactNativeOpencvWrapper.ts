@@ -1,4 +1,4 @@
-import { TurboModuleRegistry, type TurboModule } from 'react-native';
+import { TurboModuleRegistry, type TurboModule } from "react-native";
 
 export interface Spec extends TurboModule {
   /** OpenCV runtime version string (e.g. "4.10.0"). */
@@ -18,7 +18,7 @@ export interface Spec extends TurboModule {
     inputPath: string,
     outputPath: string,
     kernelSize: number,
-    sigmaX: number
+    sigmaX: number,
   ): Promise<string>;
 
   /**
@@ -29,10 +29,10 @@ export interface Spec extends TurboModule {
     inputPath: string,
     outputPath: string,
     threshold1: number,
-    threshold2: number
+    threshold2: number,
   ): Promise<string>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>(
-  'ReactNativeOpencvWrapper'
+  "ReactNativeOpencvWrapper",
 );
