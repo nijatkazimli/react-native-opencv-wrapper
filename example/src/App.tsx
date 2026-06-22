@@ -10,10 +10,9 @@ import {
 } from "react-native";
 import RNFS from "react-native-fs";
 import {
-  canny,
-  gaussianBlur,
   getOpenCVVersion,
-  toGray,
+  pipeline,
+  type ReadyPipeline,
 } from "@nijatk/react-native-opencv-wrapper";
 
 // A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
@@ -21,14 +20,39 @@ import {
 const SAMPLE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeUlEQVR42u3XsQ2AMAxFwYRpPIzH9TgeJguEigIiLmWU5qQv0JsRMXanqrb3mfmp99c4/AAAAAC8e2Z3H/G9v3tvQgAAAADP/gN6wIQAAAD0gB4wIQAAAD2gB0wIAABAD+gBEwIAANADesCEAAAA9IAeMCEAAIDfABbGnWCpH4DNoAAAAABJRU5ErkJggg==";
 
-const dir = RNFS.CachesDirectoryPath;
-const inputPath = `${dir}/sample.png`;
+const DIR = RNFS.CachesDirectoryPath;
+const INPUT_PATH = `${DIR}/sample.png`;
 
 async function ensureSampleImage() {
   // Always overwrite — base64 contents may have changed across app updates,
   // and a stale corrupt copy would silently break every op.
-  await RNFS.writeFile(inputPath, SAMPLE_PNG_BASE64, "base64");
+  await RNFS.writeFile(INPUT_PATH, SAMPLE_PNG_BASE64, "base64");
 }
+
+/** A named demo: a function that adds ops to a ready pipeline. */
+type Demo = { label: string; configure: (p: ReadyPipeline) => ReadyPipeline };
+
+const DEMOS: readonly Demo[] = [
+  { label: "Gray", configure: (p) => p.gray() },
+  { label: "Blur", configure: (p) => p.gaussianBlur(7) },
+  { label: "Canny", configure: (p) => p.gray().canny(50, 150) },
+  { label: "Resize", configure: (p) => p.resize(128, 128, "area") },
+  { label: "Rotate", configure: (p) => p.rotate(90) },
+  { label: "Flip", configure: (p) => p.flip("horizontal") },
+  { label: "Crop", configure: (p) => p.crop(8, 8, 48, 48) },
+  {
+    label: "Threshold",
+    configure: (p) => p.gray().threshold(127, 255, "binary"),
+  },
+  { label: "Median", configure: (p) => p.medianBlur(5) },
+  { label: "Dilate", configure: (p) => p.gray().dilate(3) },
+  { label: "Erode", configure: (p) => p.gray().erode(3) },
+  {
+    label: "Pipeline",
+    configure: (p) =>
+      p.resize(128, 128, "area").gray().gaussianBlur(7).canny(50, 150),
+  },
+];
 
 type Result = { label: string; path: string };
 
@@ -48,21 +72,16 @@ export default function App() {
     );
   }, []);
 
-  const run = useCallback(
-    async (
-      label: string,
-      op: (input: string, output: string) => Promise<string>,
-    ) => {
-      try {
-        const output = `${dir}/out-${label}-${Date.now()}.png`;
-        const path = await op(inputPath, output);
-        setResults((r) => [{ label, path }, ...r]);
-      } catch (e) {
-        setError(`${label}: ${(e as Error).message}`);
-      }
-    },
-    [],
-  );
+  const runDemo = useCallback(async ({ label, configure }: Demo) => {
+    try {
+      const outputPath = `${DIR}/out-${label}-${Date.now()}.png`;
+      const base = pipeline().input(INPUT_PATH).output(outputPath);
+      const path = await configure(base).run();
+      setResults((r) => [{ label, path }, ...r]);
+    } catch (e) {
+      setError(`${label}: ${(e as Error).message}`);
+    }
+  }, []);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -73,15 +92,13 @@ export default function App() {
       {error && <Text style={styles.error}>{error}</Text>}
 
       <View style={styles.row}>
-        <Button label="To Gray" onPress={() => run("gray", toGray)} />
-        <Button
-          label="Blur"
-          onPress={() => run("blur", (i, o) => gaussianBlur(i, o, 7, 0))}
-        />
-        <Button
-          label="Canny"
-          onPress={() => run("canny", (i, o) => canny(i, o, 50, 150))}
-        />
+        {DEMOS.map((demo) => (
+          <Button
+            key={demo.label}
+            label={demo.label}
+            onPress={() => runDemo(demo)}
+          />
+        ))}
       </View>
 
       {results.map((r) => (
