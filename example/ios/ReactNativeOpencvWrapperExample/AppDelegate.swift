@@ -11,10 +11,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   var reactNativeFactory: RCTReactNativeFactory?
 
   func application(
-    _ application: UIApplication,
+    _: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
-  ) -> Bool {
-    let delegate = ReactNativeDelegate()
+  ) -> Bool {    let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
 
@@ -34,7 +33,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
-  override func sourceURL(for bridge: RCTBridge) -> URL? {
+  override func sourceURL(for _: RCTBridge) -> URL? {
     self.bundleURL()
   }
 

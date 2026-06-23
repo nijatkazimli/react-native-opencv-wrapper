@@ -71,5 +71,11 @@ export default [
       },
     },
   },
+  {
+    files: ["**/*.{js,cjs}"],
+    languageOptions: {
+      sourceType: "commonjs",
+    },
+  },
   prettierConfig,
 ];

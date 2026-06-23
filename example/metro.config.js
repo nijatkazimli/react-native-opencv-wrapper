@@ -1,5 +1,5 @@
 const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
-const path = require("path");
+const path = require("node:path");
 
 const projectRoot = __dirname;
 const packageRoot = path.resolve(projectRoot, "..");
@@ -28,7 +28,9 @@ const config = {
       // Anything resolved from the parent's nested node_modules would be a
       // duplicate of what the example already has — exclude it entirely.
       new RegExp(
-        `^${path.join(packageRoot, "node_modules").replace(/[/\\]/g, "[/\\\\]")}/.*$`,
+        `^${path
+          .join(packageRoot, "node_modules")
+          .replace(/[/\\]/g, String.raw`[/\\]`)}/.*$`,
       ),
     ],
   },
