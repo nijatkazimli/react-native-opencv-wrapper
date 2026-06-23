@@ -39,7 +39,9 @@ export interface Spec extends TurboModule {
    * `opsJson` is a JSON-encoded array of `{ type, ...params }` objects, e.g.
    * `[{"type":"gray"},{"type":"gaussianBlur","kernelSize":5,"sigmaX":0}]`.
    *
-   * Supported `type` values: `"gray"`, `"gaussianBlur"`, `"canny"`.
+   * Supported `type` values include: `"gray"`, `"gaussianBlur"`, `"canny"`,
+   * `"resize"`, `"crop"`, `"rotate"`, `"flip"`, `"threshold"`,
+   * `"medianBlur"`, `"dilate"`, `"erode"`.
    */
   runPipeline(
     inputPath: string,
