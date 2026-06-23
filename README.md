@@ -253,6 +253,44 @@ try {
 
 The repository includes a working example app at `example/`.
 
+## Roadmap & limitations
+
+This wrapper covers a focused set of file-to-file operations. Known gaps and
+planned improvements:
+
+**Current limitations**
+
+- **File-based only.** Operations read from and write to disk paths. There is no
+  in-memory bitmap, base64, or texture input/output, so chaining with other
+  native modules requires round-tripping through files.
+- **No live camera / frame processing.** There is no frame processor or
+  per-frame API; this is not a replacement for camera-stream vision pipelines.
+- **Single-image ops.** No multi-image inputs (blending, stitching, template
+  matching) or video decoding/encoding.
+- **Fixed op set.** Only the operations listed above are exposed. Custom kernels,
+  arbitrary OpenCV calls, and color-space conversions beyond grayscale are not
+  available without adding a new op (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+- **No structured results.** Ops return the output path only; data-producing
+  algorithms (contours, histograms, feature points, face/QR detection) have no
+  way to return values yet.
+- **Limited parameter surface.** Things like border types, anchor points,
+  kernel shapes (only square), and per-channel control are not exposed.
+- **No cancellation or progress.** Long pipelines run to completion; there is no
+  way to cancel an in-flight call.
+
+**Planned / nice-to-have**
+
+- In-memory and base64 image I/O to avoid disk round-trips.
+- Returning structured data from analysis ops (e.g. detected rectangles).
+- More operations: color conversions, morphology shapes, warp/perspective,
+  adaptive threshold, bitwise ops.
+- Optional output encoding controls (JPG quality, PNG compression).
+- A typed escape hatch for running an arbitrary sequence of raw OpenCV steps.
+- Broader automated testing across both platforms and OpenCV versions.
+
+Contributions are welcome — adding an operation is intentionally lightweight and
+documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
