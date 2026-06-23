@@ -36,7 +36,7 @@ object OpRegistry {
       for (i in 0 until steps.length()) {
         val op = steps.getJSONObject(i)
         val type = op.getString("type")
-        val handler = ops[type] ?: error("Unknown pipeline op type '$type'")
+        val handler = ops[type] ?: throw OpenCVUnknownOpException("Unknown pipeline op type '$type'")
         val next = handler.apply(current, op)
         if (next !== current) current.release()
         current = next

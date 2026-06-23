@@ -6,6 +6,7 @@ using cv::Mat;
 
 OPENCV_REGISTER_OP(erode, @"erode",
                    ^Mat(const Mat &current, NSDictionary *params, NSError **error) {
+    if (!OpenCVRequireNumbers(params, @[@"kernelSize"], error)) return Mat();
     int k = [params[@"kernelSize"] intValue];
     int iterations = [params[@"iterations"] intValue];
     if (!OpenCVOddPositive(k)) {

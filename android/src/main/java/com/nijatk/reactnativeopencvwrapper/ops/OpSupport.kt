@@ -22,12 +22,12 @@ object OpSupport {
   /** Read an image or throw if it cannot be decoded. */
   fun readOrThrow(path: String, flag: Int): Mat {
     val m = Imgcodecs.imread(path, flag)
-    if (m.empty()) error("Could not read image at $path")
+    if (m.empty()) throw OpenCVIOException("Could not read image at $path")
     return m
   }
 
   /** Write an image or throw if it cannot be encoded. */
   fun writeOrThrow(path: String, mat: Mat) {
-    if (!Imgcodecs.imwrite(path, mat)) error("Could not write image to $path")
+    if (!Imgcodecs.imwrite(path, mat)) throw OpenCVIOException("Could not write image to $path")
   }
 }

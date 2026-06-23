@@ -20,9 +20,10 @@ object ResizeOp : Op {
   }
 
   private fun interpolationFlag(name: String?): Int = when (name) {
+    null, "", "linear" -> Imgproc.INTER_LINEAR
     "nearest" -> Imgproc.INTER_NEAREST
     "cubic" -> Imgproc.INTER_CUBIC
     "area" -> Imgproc.INTER_AREA
-    else -> Imgproc.INTER_LINEAR
+    else -> invalidArg("interpolation must be linear, nearest, cubic or area")
   }
 }

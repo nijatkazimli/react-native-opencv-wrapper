@@ -15,10 +15,11 @@ object ThresholdOp : Op {
   }
 
   private fun thresholdFlag(name: String?): Int = when (name) {
+    null, "", "binary" -> Imgproc.THRESH_BINARY
     "binaryInv" -> Imgproc.THRESH_BINARY_INV
     "trunc" -> Imgproc.THRESH_TRUNC
     "toZero" -> Imgproc.THRESH_TOZERO
     "toZeroInv" -> Imgproc.THRESH_TOZERO_INV
-    else -> Imgproc.THRESH_BINARY
+    else -> invalidArg("thresholdType must be binary, binaryInv, trunc, toZero or toZeroInv")
   }
 }

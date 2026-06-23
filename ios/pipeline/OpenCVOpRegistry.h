@@ -45,10 +45,33 @@ typedef cv::Mat (^OpenCVOpHandler)(const cv::Mat &current,
 
 @end
 
+// --- Stable error codes (mirrored on Android) -------------------------------
+//
+// Carried in the NSError `userInfo` under `OpenCVErrorCodeKey` and surfaced to
+// JS as the Promise rejection `code`, so callers can branch on the failure
+// kind instead of string-matching messages.
+extern NSString *const OpenCVErrorCodeKey;
+extern NSString *const OpenCVErrorInvalidArgument;  // "opencv_invalid_argument"
+extern NSString *const OpenCVErrorIO;               // "opencv_io_error"
+extern NSString *const OpenCVErrorUnknownOp;        // "opencv_unknown_op"
+extern NSString *const OpenCVErrorUnavailable;      // "opencv_unavailable"
+
 // --- Shared helpers usable by op files --------------------------------------
 
-/// Build an NSError in the wrapper's error domain with `message`.
+/// Build an NSError carrying the stable string `code` and `message`.
+NSError *OpenCVMakeCodedError(NSString *code, NSString *message);
+
+/// Build an invalid-argument NSError with `message`.
 NSError *OpenCVMakeError(NSString *message);
+
+/// Require that every key in `keys` is present in `params` and numeric.
+/// Returns NO and sets `*error` (invalid argument) naming the first offender.
+BOOL OpenCVRequireNumbers(NSDictionary *params,
+                          NSArray<NSString *> *keys,
+                          NSError **error);
+
+/// Coerce `params[key]` to a present string, or `nil` if absent / not a string.
+NSString *OpenCVOptionalString(NSDictionary *params, NSString *key);
 
 /// Return a single-channel copy of `src` (no-op if already grayscale).
 cv::Mat OpenCVEnsureGray(const cv::Mat &src);

@@ -4,6 +4,7 @@ using cv::Mat;
 
 OPENCV_REGISTER_OP(medianBlur, @"medianBlur",
                    ^Mat(const Mat &current, NSDictionary *params, NSError **error) {
+    if (!OpenCVRequireNumbers(params, @[@"kernelSize"], error)) return Mat();
     int k = [params[@"kernelSize"] intValue];
     if (!OpenCVOddPositive(k)) {
         if (error) *error = OpenCVMakeError(@"kernelSize must be a positive odd integer");

@@ -6,6 +6,13 @@
 
 #import "pipeline/OpenCVOpRegistry.h"
 
+/// Reject a promise with the stable code carried by `error` (falling back to a
+/// generic code), so JS callers can branch on the failure kind.
+static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
+    NSString *code = error.userInfo[OpenCVErrorCodeKey];
+    reject(code.length ? code : @"opencv_error", error.localizedDescription, error);
+}
+
 @implementation ReactNativeOpencvWrapper
 
 - (NSString *)getOpenCVVersion {
@@ -23,7 +30,7 @@
                                                params:@{}
                                                 error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);
@@ -37,7 +44,7 @@
               reject:(RCTPromiseRejectBlock)reject {
     int k = (int)kernelSize;
     if (k < 1 || k % 2 == 0) {
-        reject(@"opencv_error", @"kernelSize must be a positive odd integer", nil);
+        reject(OpenCVErrorInvalidArgument, @"kernelSize must be a positive odd integer", nil);
         return;
     }
     NSError *error = nil;
@@ -47,7 +54,7 @@
                                                params:@{ @"kernelSize": @(k), @"sigmaX": @(sigmaX) }
                                                 error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);
@@ -66,7 +73,7 @@
                                                params:@{ @"threshold1": @(threshold1), @"threshold2": @(threshold2) }
                                                 error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);
@@ -83,7 +90,7 @@
                                              opsJson:opsJson
                                                error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);

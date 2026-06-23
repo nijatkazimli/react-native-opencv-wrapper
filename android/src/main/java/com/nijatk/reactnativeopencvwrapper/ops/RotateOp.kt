@@ -11,7 +11,7 @@ object RotateOp : Op {
       90 -> Core.ROTATE_90_CLOCKWISE
       180 -> Core.ROTATE_180
       270 -> Core.ROTATE_90_COUNTERCLOCKWISE
-      else -> error("rotate angle must be 90, 180 or 270")
+      else -> invalidArg("rotate angle must be 90, 180 or 270")
     }
     return Mat().also { Core.rotate(current, it, code) }
   }

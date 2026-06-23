@@ -4,6 +4,7 @@ using cv::Mat;
 
 OPENCV_REGISTER_OP(gaussianBlur, @"gaussianBlur",
                    ^Mat(const Mat &current, NSDictionary *params, NSError **error) {
+    if (!OpenCVRequireNumbers(params, @[@"kernelSize"], error)) return Mat();
     int k = [params[@"kernelSize"] intValue];
     double sigmaX = [params[@"sigmaX"] doubleValue];
     if (!OpenCVOddPositive(k)) {

@@ -11,7 +11,7 @@ object FlipOp : Op {
       "horizontal" -> 1
       "vertical" -> 0
       "both" -> -1
-      else -> error("flip direction must be horizontal, vertical or both")
+      else -> invalidArg("flip direction must be horizontal, vertical or both")
     }
     return Mat().also { Core.flip(current, it, code) }
   }

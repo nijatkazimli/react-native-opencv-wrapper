@@ -4,6 +4,7 @@ using cv::Mat;
 
 OPENCV_REGISTER_OP(rotate, @"rotate",
                    ^Mat(const Mat &current, NSDictionary *params, NSError **error) {
+    if (!OpenCVRequireNumbers(params, @[@"angle"], error)) return Mat();
     int angle = [params[@"angle"] intValue];
     int code;
     switch (angle) {

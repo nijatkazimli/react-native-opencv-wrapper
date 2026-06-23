@@ -6,10 +6,45 @@ using cv::Mat;
 
 static NSString *const kOpenCVErrorDomain = @"ReactNativeOpencvWrapper";
 
-NSError *OpenCVMakeError(NSString *message) {
+NSString *const OpenCVErrorCodeKey = @"OpenCVErrorCode";
+NSString *const OpenCVErrorInvalidArgument = @"opencv_invalid_argument";
+NSString *const OpenCVErrorIO = @"opencv_io_error";
+NSString *const OpenCVErrorUnknownOp = @"opencv_unknown_op";
+NSString *const OpenCVErrorUnavailable = @"opencv_unavailable";
+
+NSError *OpenCVMakeCodedError(NSString *code, NSString *message) {
     return [NSError errorWithDomain:kOpenCVErrorDomain
                                code:3
-                           userInfo:@{NSLocalizedDescriptionKey: message ?: @"OpenCV error"}];
+                           userInfo:@{
+                               NSLocalizedDescriptionKey: message ?: @"OpenCV error",
+                               OpenCVErrorCodeKey: code ?: OpenCVErrorInvalidArgument,
+                           }];
+}
+
+NSError *OpenCVMakeError(NSString *message) {
+    return OpenCVMakeCodedError(OpenCVErrorInvalidArgument, message);
+}
+
+BOOL OpenCVRequireNumbers(NSDictionary *params,
+                          NSArray<NSString *> *keys,
+                          NSError **error) {
+    for (NSString *key in keys) {
+        id value = params[key];
+        if (![value isKindOfClass:[NSNumber class]]) {
+            if (error) {
+                *error = OpenCVMakeCodedError(
+                    OpenCVErrorInvalidArgument,
+                    [NSString stringWithFormat:@"param '%@' is required and must be a number", key]);
+            }
+            return NO;
+        }
+    }
+    return YES;
+}
+
+NSString *OpenCVOptionalString(NSDictionary *params, NSString *key) {
+    id value = params[key];
+    return [value isKindOfClass:[NSString class]] ? (NSString *)value : nil;
 }
 
 Mat OpenCVEnsureGray(const Mat &src) {
@@ -69,7 +104,8 @@ static std::string OpenCVPath(NSString *path) {
     Mat current = cv::imread(OpenCVPath(inputPath), cv::IMREAD_COLOR);
     if (current.empty()) {
         if (error) {
-            *error = OpenCVMakeError([NSString stringWithFormat:@"Could not read image at %@", inputPath]);
+            *error = OpenCVMakeCodedError(OpenCVErrorIO,
+                [NSString stringWithFormat:@"Could not read image at %@", inputPath]);
         }
         return NO;
     }
@@ -93,7 +129,8 @@ static std::string OpenCVPath(NSString *path) {
         OpenCVOpHandler handler = [self handlerForName:type];
         if (handler == nil) {
             if (error) {
-                *error = OpenCVMakeError([NSString stringWithFormat:@"Unknown pipeline op type '%@'", type]);
+                *error = OpenCVMakeCodedError(OpenCVErrorUnknownOp,
+                    [NSString stringWithFormat:@"Unknown pipeline op type '%@'", type]);
             }
             return NO;
         }
@@ -108,7 +145,8 @@ static std::string OpenCVPath(NSString *path) {
 
     if (!cv::imwrite(OpenCVPath(outputPath), current)) {
         if (error) {
-            *error = OpenCVMakeError([NSString stringWithFormat:@"Could not write image to %@", outputPath]);
+            *error = OpenCVMakeCodedError(OpenCVErrorIO,
+                [NSString stringWithFormat:@"Could not write image to %@", outputPath]);
         }
         return NO;
     }

@@ -3,6 +3,9 @@ package com.nijatk.reactnativeopencvwrapper
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.nijatk.reactnativeopencvwrapper.ops.OpRegistry
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
+import org.json.JSONException
 import org.json.JSONObject
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.Core
@@ -10,12 +13,11 @@ import org.opencv.core.Core
 class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
   NativeReactNativeOpencvWrapperSpec(reactContext) {
 
-  init {
-    // OpenCVLoader.initLocal() statically links the bundled native library
-    // shipped inside the OpenCV Android AAR. Failures will surface in op
-    // calls rather than crashing module construction.
-    runCatching { OpenCVLoader.initLocal() }
-  }
+  // OpenCVLoader.initLocal() statically links the bundled native library
+  // shipped inside the OpenCV Android AAR. We capture the result so op calls
+  // can fail fast with a clear message instead of a cryptic UnsatisfiedLinkError.
+  private val openCVReady: Boolean =
+    runCatching { OpenCVLoader.initLocal() }.getOrDefault(false)
 
   override fun getOpenCVVersion(): String = Core.VERSION
 
@@ -73,12 +75,23 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
   }
 
   private inline fun runOp(promise: Promise, outputPath: String, block: () -> Unit) {
+    if (!openCVReady) {
+      promise.reject("opencv_unavailable", "OpenCV native library failed to initialize")
+      return
+    }
     try {
       block()
       promise.resolve(outputPath)
     } catch (t: Throwable) {
-      promise.reject("opencv_error", t.message ?: t.javaClass.simpleName, t)
+      promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
     }
+  }
+
+  private fun errorCode(t: Throwable): String = when (t) {
+    is OpenCVUnknownOpException -> "opencv_unknown_op"
+    is OpenCVIOException -> "opencv_io_error"
+    is IllegalArgumentException, is JSONException -> "opencv_invalid_argument"
+    else -> "opencv_error"
   }
 
   companion object {

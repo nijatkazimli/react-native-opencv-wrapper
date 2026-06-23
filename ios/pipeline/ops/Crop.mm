@@ -4,6 +4,7 @@ using cv::Mat;
 
 OPENCV_REGISTER_OP(crop, @"crop",
                    ^Mat(const Mat &current, NSDictionary *params, NSError **error) {
+    if (!OpenCVRequireNumbers(params, @[@"x", @"y", @"width", @"height"], error)) return Mat();
     int x = [params[@"x"] intValue];
     int y = [params[@"y"] intValue];
     int w = [params[@"width"] intValue];
