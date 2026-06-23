@@ -21,6 +21,32 @@ cd ios
 pod install
 ```
 
+## Compatibility
+
+This package is a **TurboModule** and ships only a New Architecture
+implementation (it relies on React Native Codegen). The **New Architecture must
+be enabled** in your app — there is no legacy Paper / bridge fallback.
+
+| Requirement           | Supported                                                                      |
+| --------------------- | ------------------------------------------------------------------------------ |
+| React Native          | **0.76+** recommended (New Architecture on by default); built/tested on `0.85` |
+| React                 | **19+** (matches the React version bundled with RN 0.76+)                      |
+| Architecture          | **New Architecture only** — TurboModules + Codegen required                    |
+| Bridgeless mode       | Supported (and expected on RN 0.76+)                                           |
+| iOS deployment target | Follows the OpenCV pod (iOS 13+)                                               |
+| Android `minSdk`      | 24+                                                                            |
+
+Notes:
+
+- **New Architecture is mandatory.** On RN 0.76 and newer it is enabled by
+  default. On older supported versions you must turn it on:
+  - iOS: install pods with `RCT_NEW_ARCH_ENABLED=1 pod install`.
+  - Android: set `newArchEnabled=true` in `android/gradle.properties`.
+- If New Architecture is disabled, the native module will not be registered and
+  calls will fail to resolve.
+- Codegen runs automatically during the iOS `pod install` and the Android Gradle
+  build — no manual codegen step is required.
+
 ## OpenCV integration
 
 This package supports two OpenCV modes:
