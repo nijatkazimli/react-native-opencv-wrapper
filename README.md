@@ -2,6 +2,8 @@
 
 React Native wrapper for OpenCV with optional bundled binaries.
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=nijatkazimli_react-native-opencv-wrapper&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nijatkazimli_react-native-opencv-wrapper)
+
 ## Install
 
 ```bash
