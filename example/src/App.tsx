@@ -112,7 +112,10 @@ export default function App() {
   );
 }
 
-function Button({ label, onPress }: { label: string; onPress: () => void }) {
+function Button({
+  label,
+  onPress,
+}: Readonly<{ label: string; onPress: () => void }>) {
   return (
     <TouchableOpacity style={styles.button} onPress={onPress}>
       <Text style={styles.buttonText}>{label}</Text>

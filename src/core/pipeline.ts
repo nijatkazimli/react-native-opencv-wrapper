@@ -123,7 +123,7 @@ export function pipeline(): Pipeline {
  * Run a single op through the same native pipeline engine used by
  * {@link Pipeline.run}.
  */
-export function runStandaloneOp<Name extends keyof OpArgsMap & string>(
+export function runStandaloneOp<Name extends keyof OpArgsMap>(
   name: Name,
   inputPath: string,
   outputPath: string,
@@ -141,7 +141,7 @@ export function runStandaloneOp<Name extends keyof OpArgsMap & string>(
 }
 
 export type StandaloneOps = {
-  [Name in keyof OpArgsMap & string]: (
+  [Name in keyof OpArgsMap]: (
     inputPath: string,
     outputPath: string,
     ...args: OpArgsMap[Name]
