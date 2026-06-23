@@ -1,6 +1,6 @@
 {
   "name": "@nijatk/react-native-opencv-wrapper",
-  "version": "0.1.10",
+  "version": "1.0.0",
   "description": "React Native wrapper for OpenCV with optional bundled binaries",
   "repository": {
     "type": "git",
@@ -80,7 +80,11 @@
     "lint": "eslint \"**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "release": "npm run release:patch",
+    "release:patch": "npm version patch && git push --follow-tags",
+    "release:minor": "npm version minor && git push --follow-tags",
+    "release:major": "npm version major && git push --follow-tags"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

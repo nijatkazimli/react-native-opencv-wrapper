@@ -49,7 +49,15 @@ mode           = resolve_opencv_mode.call(opencv_cfg)
 opencv_pod     = ENV["RN_OPENCV_POD"]     || opencv_cfg["pod"]     || DEFAULT_OPENCV_POD
 opencv_version = ENV["RN_OPENCV_VERSION"] || opencv_cfg["version"] || DEFAULT_OPENCV_VERSION
 
-Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})".yellow
+# Only print when CocoaPods has loaded the host Podfile (otherwise
+# auto-detect can't see the host's pods and we'd announce a tentative
+# mode that may flip on a later evaluation). If the user explicitly
+# forced a mode via env var or package.json, print right away.
+forced = !ENV["RN_OPENCV_MODE"].to_s.empty? || !opencv_cfg["mode"].nil?
+podfile_ready = !(Pod::Config.instance.podfile rescue nil).nil?
+if forced || podfile_ready
+  Pod::UI.puts "[react-native-opencv-wrapper] OpenCV mode: #{mode} (pod: #{opencv_pod} #{opencv_version})"
+end
 
 Pod::Spec.new do |s|
   s.name         = "ReactNativeOpencvWrapper"
@@ -69,6 +77,15 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig = {
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "CLANG_CXX_LIBRARY"           => "libc++"
+  }
+
+  # Each op self-registers from a `+load` in its own translation unit. When the
+  # pod is linked as a static library, the linker drops these otherwise
+  # unreferenced object files, so `+load` never runs and ops fail with
+  # "unknown pipeline op type". `-ObjC` force-loads every object file that
+  # defines an Objective-C class, ensuring all ops register.
+  s.user_target_xcconfig = {
+    "OTHER_LDFLAGS" => "-ObjC"
   }
 
   if mode == "bundled"

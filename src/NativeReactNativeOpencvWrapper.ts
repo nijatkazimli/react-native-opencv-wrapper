@@ -31,6 +31,23 @@ export interface Spec extends TurboModule {
     threshold1: number,
     threshold2: number,
   ): Promise<string>;
+
+  /**
+   * Execute a sequence of operations in-memory on a single image, reading
+   * `inputPath` once and writing the final result to `outputPath` once.
+   *
+   * `opsJson` is a JSON-encoded array of `{ type, ...params }` objects, e.g.
+   * `[{"type":"gray"},{"type":"gaussianBlur","kernelSize":5,"sigmaX":0}]`.
+   *
+   * Supported `type` values include: `"gray"`, `"gaussianBlur"`, `"canny"`,
+   * `"resize"`, `"crop"`, `"rotate"`, `"flip"`, `"threshold"`,
+   * `"medianBlur"`, `"dilate"`, `"erode"`.
+   */
+  runPipeline(
+    inputPath: string,
+    outputPath: string,
+    opsJson: string,
+  ): Promise<string>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>(

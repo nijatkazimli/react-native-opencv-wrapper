@@ -4,45 +4,13 @@
 
 #import "ReactNativeOpencvWrapper.h"
 
-#import <string>
+#import "pipeline/OpenCVOpRegistry.h"
 
-using cv::Mat;
-
-static NSString *kErrorDomain = @"ReactNativeOpencvWrapper";
-
-static std::string PathFromNSString(NSString *path) {
-    return std::string([path UTF8String]);
-}
-
-static BOOL ProcessAndWrite(NSString *inputPath,
-                            NSString *outputPath,
-                            int imreadFlag,
-                            void (^transform)(const Mat &src, Mat &dst),
-                            NSError **error) {
-    Mat src = cv::imread(PathFromNSString(inputPath), imreadFlag);
-    if (src.empty()) {
-        if (error) {
-            *error = [NSError errorWithDomain:kErrorDomain
-                                         code:1
-                                     userInfo:@{NSLocalizedDescriptionKey:
-                                                    [NSString stringWithFormat:@"Could not read image at %@", inputPath]}];
-        }
-        return NO;
-    }
-
-    Mat dst;
-    transform(src, dst);
-
-    if (!cv::imwrite(PathFromNSString(outputPath), dst)) {
-        if (error) {
-            *error = [NSError errorWithDomain:kErrorDomain
-                                         code:2
-                                     userInfo:@{NSLocalizedDescriptionKey:
-                                                    [NSString stringWithFormat:@"Could not write image to %@", outputPath]}];
-        }
-        return NO;
-    }
-    return YES;
+/// Reject a promise with the stable code carried by `error` (falling back to a
+/// generic code), so JS callers can branch on the failure kind.
+static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
+    NSString *code = error.userInfo[OpenCVErrorCodeKey];
+    reject(code.length ? code : @"opencv_error", error.localizedDescription, error);
 }
 
 @implementation ReactNativeOpencvWrapper
@@ -56,12 +24,13 @@ static BOOL ProcessAndWrite(NSString *inputPath,
        resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject {
     NSError *error = nil;
-    BOOL ok = ProcessAndWrite(inputPath, outputPath, cv::IMREAD_COLOR,
-        ^(const Mat &src, Mat &dst) {
-            cv::cvtColor(src, dst, cv::COLOR_BGR2GRAY);
-        }, &error);
+    BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
+                                               output:outputPath
+                                               opName:@"gray"
+                                               params:@{}
+                                                error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);
@@ -75,16 +44,17 @@ static BOOL ProcessAndWrite(NSString *inputPath,
               reject:(RCTPromiseRejectBlock)reject {
     int k = (int)kernelSize;
     if (k < 1 || k % 2 == 0) {
-        reject(@"opencv_error", @"kernelSize must be a positive odd integer", nil);
+        reject(OpenCVErrorInvalidArgument, @"kernelSize must be a positive odd integer", nil);
         return;
     }
     NSError *error = nil;
-    BOOL ok = ProcessAndWrite(inputPath, outputPath, cv::IMREAD_COLOR,
-        ^(const Mat &src, Mat &dst) {
-            cv::GaussianBlur(src, dst, cv::Size(k, k), sigmaX);
-        }, &error);
+    BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
+                                               output:outputPath
+                                               opName:@"gaussianBlur"
+                                               params:@{ @"kernelSize": @(k), @"sigmaX": @(sigmaX) }
+                                                error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);
@@ -97,12 +67,30 @@ static BOOL ProcessAndWrite(NSString *inputPath,
       resolve:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject {
     NSError *error = nil;
-    BOOL ok = ProcessAndWrite(inputPath, outputPath, cv::IMREAD_GRAYSCALE,
-        ^(const Mat &src, Mat &dst) {
-            cv::Canny(src, dst, threshold1, threshold2);
-        }, &error);
+    BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
+                                               output:outputPath
+                                               opName:@"canny"
+                                               params:@{ @"threshold1": @(threshold1), @"threshold2": @(threshold2) }
+                                                error:&error];
     if (!ok) {
-        reject(@"opencv_error", error.localizedDescription, error);
+        OpenCVReject(reject, error);
+        return;
+    }
+    resolve(outputPath);
+}
+
+- (void)runPipeline:(NSString *)inputPath
+         outputPath:(NSString *)outputPath
+            opsJson:(NSString *)opsJson
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject {
+    NSError *error = nil;
+    BOOL ok = [OpenCVOpRegistry runPipelineWithInput:inputPath
+                                              output:outputPath
+                                             opsJson:opsJson
+                                               error:&error];
+    if (!ok) {
+        OpenCVReject(reject, error);
         return;
     }
     resolve(outputPath);
