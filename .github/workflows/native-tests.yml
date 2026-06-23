@@ -1,0 +1,121 @@
+name: Native Tests
+
+# Heavier than the TS unit tests, so this runs on PRs to main, on manual
+# dispatch, and when native sources change. The TS Jest suite still runs in
+# ci.yml on every push.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "ios/**"
+      - "ReactNativeOpencvWrapper.podspec"
+      - "example/**"
+      - ".github/workflows/native-tests.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: native-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-tests:
+    name: Android (instrumented, real OpenCV)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies (library)
+        run: npm ci
+
+      - name: Install dependencies (example)
+        run: npm ci
+        working-directory: example
+
+      # Required for hardware-accelerated emulation on the Linux runner.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests + coverage
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          working-directory: example/android
+          script: ./gradlew :nijatk_react-native-opencv-wrapper:createDebugAndroidTestCoverageReport --console=plain
+
+      - name: Upload Android coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-coverage
+          path: android/build/reports/coverage/androidTest/debug/connected
+
+  ios-tests:
+    name: iOS (XCTest, real OpenCV)
+    runs-on: macos-14
+    env:
+      RN_OPENCV_WITH_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (library)
+        run: npm ci
+
+      - name: Install dependencies (example)
+        run: npm ci
+        working-directory: example
+
+      # The default OpenCV CocoaPod ships a device-only arm64 slice plus an
+      # x86_64 simulator slice (no arm64-simulator slice). On the Apple-silicon
+      # runner we therefore build/run the tests as x86_64 under Rosetta so the
+      # linker can use OpenCV's simulator slice.
+      - name: Install Rosetta
+        run: softwareupdate --install-rosetta --agree-to-license
+
+      - name: Pod install (with test_spec)
+        run: pod install
+        working-directory: example/ios
+
+      - name: Run XCTest + coverage
+        working-directory: example/ios
+        run: |
+          xcodebuild test \
+            -workspace ReactNativeOpencvWrapperExample.xcworkspace \
+            -scheme ReactNativeOpencvWrapper \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -enableCodeCoverage YES \
+            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            -resultBundlePath "$RUNNER_TEMP/rnocv-ios.xcresult"
+
+      - name: Upload iOS result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcresult
+          path: ${{ runner.temp }}/rnocv-ios.xcresult

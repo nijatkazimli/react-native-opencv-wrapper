@@ -1788,7 +1788,30 @@ PODS:
     - React-utils (= 0.85.3)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.85.3)
-  - ReactNativeOpencvWrapper (0.1.10):
+  - ReactNativeOpencvWrapper (1.0.0):
+    - hermes-engine
+    - OpenCV (~> 4.3.0)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - ReactNativeOpencvWrapper/Tests (1.0.0):
     - hermes-engine
     - OpenCV (~> 4.3.0)
     - RCTRequired
@@ -1891,6 +1914,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - ReactNativeOpencvWrapper (from `../..`)
+  - ReactNativeOpencvWrapper/Tests (from `../..`)
   - RNFS (from `../node_modules/react-native-fs`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2128,10 +2152,10 @@ SPEC CHECKSUMS:
   ReactCodegen: 9af5798e943781fd2318dab7b60f25337388047c
   ReactCommon: 3ec2a55999d296af90c24beb66c8a77dc660d3ef
   ReactNativeDependencies: f594c5a14f3d23300b6f54934b8b1dccc6bd48b7
-  ReactNativeOpencvWrapper: 21ec6653df0c479df665ccdf0becbb279574967b
+  ReactNativeOpencvWrapper: 8a97c39e9418d04dd8d91194a6f27514c046b5f0
   RNFS: 4ac0f0ea233904cb798630b3c077808c06931688
   Yoga: 77dfa8673de2874e1855002ae59c68b8be9b007b
 
-PODFILE CHECKSUM: 69ee1b32e96c52ea8a906dfeac798d6da62e9bb2
+PODFILE CHECKSUM: 598ee27a5abb4cc1f6046f5f0ce6afa67805cb21
 
 COCOAPODS: 1.16.2

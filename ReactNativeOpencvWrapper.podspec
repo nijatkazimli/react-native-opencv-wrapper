@@ -72,6 +72,9 @@ Pod::Spec.new do |s|
 
   s.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
   s.private_header_files = "ios/**/*.h"
+  # Test sources live under ios/Tests and are compiled by the test_spec below,
+  # not as part of the shipped library.
+  s.exclude_files = "ios/Tests/**/*"
 
   # OpenCV uses C++17 features.
   s.pod_target_xcconfig = {
@@ -90,6 +93,19 @@ Pod::Spec.new do |s|
 
   if mode == "bundled"
     s.dependency opencv_pod, opencv_version
+  end
+
+  # XCTest suite that exercises the registry against the real OpenCV library.
+  # `-ObjC` is required so each op's `+load` self-registration runs in the test
+  # binary, mirroring the host-app linker flag above.
+  s.test_spec "Tests" do |test|
+    test.source_files = "ios/Tests/**/*.{m,mm}"
+    test.requires_app_host = false
+    test.pod_target_xcconfig = {
+      "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
+      "CLANG_CXX_LIBRARY"           => "libc++",
+      "OTHER_LDFLAGS"               => "-ObjC"
+    }
   end
 
   install_modules_dependencies(s)

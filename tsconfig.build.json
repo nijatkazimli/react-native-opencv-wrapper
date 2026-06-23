@@ -8,5 +8,5 @@
     "outDir": "lib/typescript"
   },
   "include": ["src"],
-  "exclude": ["node_modules", "lib", "example"]
+  "exclude": ["node_modules", "lib", "example", "src/**/__tests__"]
 }

@@ -27,5 +27,11 @@
     "noEmit": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "lib", "example", "example/node_modules"]
+  "exclude": [
+    "node_modules",
+    "lib",
+    "example",
+    "example/node_modules",
+    "src/**/__tests__"
+  ]
 }
