@@ -79,6 +79,15 @@ Pod::Spec.new do |s|
     "CLANG_CXX_LIBRARY"           => "libc++"
   }
 
+  # Each op self-registers from a `+load` in its own translation unit. When the
+  # pod is linked as a static library, the linker drops these otherwise
+  # unreferenced object files, so `+load` never runs and ops fail with
+  # "unknown pipeline op type". `-ObjC` force-loads every object file that
+  # defines an Objective-C class, ensuring all ops register.
+  s.user_target_xcconfig = {
+    "OTHER_LDFLAGS" => "-ObjC"
+  }
+
   if mode == "bundled"
     s.dependency opencv_pod, opencv_version
   end

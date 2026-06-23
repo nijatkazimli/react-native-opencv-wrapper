@@ -81,9 +81,11 @@ export function invert(inputPath: string, outputPath: string): Promise<string> {
 
 ### 2. iOS — `ios/pipeline/ops/Invert.mm`
 
-Create the handler. `OPENCV_REGISTER_OP` self-registers the op at load time via
-a constructor function, and the podspec's `ios/**/*.{h,m,mm,...}` glob picks up
-the new file automatically — **no registry edit needed.**
+Create the handler. `OPENCV_REGISTER_OP` self-registers the op at image-load
+time via a `+load` method, and the podspec's `ios/**/*.{h,m,mm,...}` glob picks
+up the new file automatically — **no registry edit needed.** (The podspec adds
+`-ObjC` to consuming app targets so these registrar classes survive static
+linking; without it the linker would drop unreferenced op object files.)
 
 ```objc
 #import "../OpenCVOpRegistry.h"

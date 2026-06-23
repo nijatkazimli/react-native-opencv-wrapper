@@ -90,10 +90,33 @@ BOOL OpenCVOddPositive(int k);
 //   });
 //
 // `IDENT` is any unique C identifier; `NAME` is the op key matching the JS
-// `type`; `BLOCK` is an OpenCVOpHandler. The op registers at load time.
+// --- Self-registration macro -------------------------------------------------
+//
+// Usage (in an op's .mm file):
+//
+//   OPENCV_REGISTER_OP(gray, @"gray", ^cv::Mat(const cv::Mat &current,
+//                                               NSDictionary *params,
+//                                               NSError **error) {
+//     return OpenCVEnsureGray(current);
+//   });
+//
+// `IDENT` is any unique C identifier; `NAME` is the op key matching the JS
+// `type`; `BLOCK` is an OpenCVOpHandler. The op registers in `+load` at image
+// load time.
+//
+// The registration is emitted as an Objective-C class (rather than a plain
+// `__attribute__((constructor))` function) so that, when the pod is linked as
+// a static library, the `-ObjC` linker flag force-loads each op's object file.
+// Without this the linker would drop these otherwise-unreferenced translation
+// units and no ops would register. The podspec adds `-ObjC` to consuming app
+// targets for exactly this reason.
 #define OPENCV_REGISTER_OP(IDENT, NAME, BLOCK)                                  \
-  __attribute__((constructor)) static void _opencv_register_##IDENT(void) {    \
+  @interface _OpenCVOpRegistrar_##IDENT : NSObject                             \
+  @end                                                                          \
+  @implementation _OpenCVOpRegistrar_##IDENT                                   \
+  + (void)load {                                                                \
     [OpenCVOpRegistry registerOp:(NAME) handler:(BLOCK)];                       \
-  }
+  }                                                                             \
+  @end
 
 #endif
