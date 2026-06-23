@@ -40,13 +40,25 @@ android {
   defaultConfig {
     minSdkVersion getExtOrDefault("minSdkVersion")
     targetSdkVersion getExtOrDefault("targetSdkVersion")
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
   }
 
   buildFeatures {
     buildConfig true
   }
 
+  // When building the instrumented-test APK, both react-android and the
+  // bundled OpenCV ship libc++_shared.so. Keep the first to avoid a duplicate.
+  packaging {
+    jniLibs {
+      pickFirsts += ["**/libc++_shared.so"]
+    }
+  }
+
   buildTypes {
+    debug {
+      enableAndroidTestCoverage true
+    }
     release {
       minifyEnabled false
     }
@@ -109,6 +121,9 @@ repositories {
 
 dependencies {
   implementation "com.facebook.react:react-android"
+
+  androidTestImplementation "androidx.test.ext:junit:1.2.1"
+  androidTestImplementation "androidx.test:runner:1.6.2"
 
   if (opencvMode == "bundled") {
     implementation "org.opencv:opencv:${opencvVersion}"

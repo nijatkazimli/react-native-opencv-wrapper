@@ -17,6 +17,13 @@ if linkage != nil
 end
 
 target 'ReactNativeOpencvWrapperExample' do
+  # Declare the wrapper explicitly (before autolinking, which then skips it) so
+  # its `Tests` test_spec target is generated. Set RN_OPENCV_WITH_TESTS=1 when
+  # running the native XCTest suite; the normal app build leaves it unset.
+  if ENV['RN_OPENCV_WITH_TESTS'] == '1'
+    pod 'ReactNativeOpencvWrapper', :path => '../..', :testspecs => ['Tests']
+  end
+
   config = use_native_modules!
 
   use_react_native!(
