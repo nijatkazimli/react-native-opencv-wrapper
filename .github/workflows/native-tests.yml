@@ -127,6 +127,16 @@ jobs:
         run: npm ci
         working-directory: example
 
+      # The Podfile uses the `cocoapods-patch` plugin, which is declared in
+      # example/Gemfile. Install the pinned gems via Bundler so `pod install`
+      # has the plugin available.
+      - name: Setup Ruby (Bundler)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          working-directory: example
+          bundler-cache: true
+
       # The default OpenCV CocoaPod ships a device-only arm64 slice plus an
       # x86_64 simulator slice (no arm64-simulator slice). On the Apple-silicon
       # runner we therefore build/run the tests as x86_64 under Rosetta so the
@@ -145,8 +155,10 @@ jobs:
             ${{ runner.os }}-pods-
 
       - name: Pod install (with test_spec)
-        run: pod install
+        run: bundle exec pod install
         working-directory: example/ios
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/example/Gemfile
 
       - name: Run XCTest + coverage
         working-directory: example/ios
