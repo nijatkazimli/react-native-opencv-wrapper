@@ -3,6 +3,7 @@ const path = require("node:path");
 
 const projectRoot = __dirname;
 const packageRoot = path.resolve(projectRoot, "..");
+const pkg = require("../package.json");
 
 /**
  * Metro configuration
@@ -15,6 +16,10 @@ const packageRoot = path.resolve(projectRoot, "..");
  *   3. Avoid loading a *second* copy of React/React Native from the parent
  *      package's nested `node_modules` (`blockList`), and prefer the
  *      example's own copies (`nodeModulesPaths`).
+ *   4. Resolve the library from its TypeScript `src/` instead of the compiled
+ *      `lib/` output (the package `exports` map points at `lib/`), so changes
+ *      under `src/` are picked up without re-running `yarn build`
+ *      (`resolveRequest`).
  *
  * @type {import('@react-native/metro-config').MetroConfig}
  */
@@ -33,6 +38,16 @@ const config = {
           .replace(/[/\\]/g, String.raw`[/\\]`)}/.*$`,
       ),
     ],
+    resolveRequest: (context, moduleName, platform) => {
+      // Map `@scope/pkg` and `@scope/pkg/sub` to the library's `src/`, so the
+      // example runs the source directly (no `lib/` rebuild needed).
+      if (moduleName === pkg.name || moduleName.startsWith(`${pkg.name}/`)) {
+        const subpath = moduleName.slice(pkg.name.length);
+        const target = path.join(packageRoot, "src", subpath || "index");
+        return context.resolveRequest(context, target, platform);
+      }
+      return context.resolveRequest(context, moduleName, platform);
+    },
   },
 };
 
