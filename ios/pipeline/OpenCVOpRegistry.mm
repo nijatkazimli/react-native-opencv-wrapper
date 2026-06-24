@@ -115,7 +115,7 @@ static Mat OpenCVDecodeInput(NSDictionary *input, NSError **error) {
             ? [[NSData alloc] initWithBase64EncodedString:OpenCVStripDataURI(raw)
                                                   options:NSDataBase64DecodingIgnoreUnknownCharacters]
             : nil;
-        if (bytes == nil) {
+        if (bytes == nil || bytes.length == 0) {
             if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO, @"Could not decode base64 input image");
             return Mat();
         }
