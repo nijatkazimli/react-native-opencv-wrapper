@@ -14,6 +14,7 @@ import {
   pipeline,
   type ReadyPipeline,
 } from "@nijatk/react-native-opencv-wrapper";
+import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
 
 // A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
 // the example needs no extra assets / camera permissions.
@@ -108,6 +109,30 @@ export default function App() {
     }
   }, []);
 
+  const runDecodeQRDemo = useCallback(async () => {
+    try {
+      const result = await pipeline()
+        .inputBase64(SAMPLE_QR_PNG_BASE64)
+        .decodeQR();
+      const note = result.found
+        ? `found ${result.codes.length}: ${result.codes
+            .map((c) => c.value)
+            .join(", ")}`
+        : "no QR code found";
+      setResults((r) => [
+        {
+          id: `qr-${Date.now()}`,
+          label: "Decode QR",
+          uri: `data:image/png;base64,${SAMPLE_QR_PNG_BASE64}`,
+          note,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Decode QR: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -125,6 +150,7 @@ export default function App() {
           />
         ))}
         <Button label="Base64 I/O" onPress={runBase64Demo} />
+        <Button label="Decode QR" onPress={runDecodeQRDemo} />
       </View>
 
       {results.map((r) => (

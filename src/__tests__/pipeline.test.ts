@@ -17,6 +17,24 @@ jest.mock("../NativeReactNativeOpencvWrapper", () => ({
         sink.kind === "path" ? sink.value : `base64:${sink.ext}`,
       );
     }),
+    runPipelineData: jest.fn(() =>
+      Promise.resolve(
+        JSON.stringify({
+          found: true,
+          codes: [
+            {
+              value: "hello",
+              corners: [
+                { x: 1, y: 2 },
+                { x: 3, y: 4 },
+                { x: 5, y: 6 },
+                { x: 7, y: 8 },
+              ],
+            },
+          ],
+        }),
+      ),
+    ),
   },
 }));
 
@@ -231,5 +249,74 @@ describe("Pipeline builder", () => {
       { type: "dilate", kernelSize: 3, iterations: 2 },
       { type: "erode", kernelSize: 5, iterations: 3 },
     ]);
+  });
+});
+
+/** Parse the input/ops args of the Nth runPipelineData call. */
+function dataCall(n = 0) {
+  const [inputJson, opsJson] = native.runPipelineData.mock.calls[n];
+  return {
+    input: JSON.parse(inputJson),
+    ops: JSON.parse(opsJson),
+  };
+}
+
+describe("Data-returning analysis ops", () => {
+  it("decodeQR resolves with the parsed structured result", async () => {
+    const result = await pipeline().input("/abs/qr.png").decodeQR();
+
+    expect(result).toEqual({
+      found: true,
+      codes: [
+        {
+          value: "hello",
+          corners: [
+            { x: 1, y: 2 },
+            { x: 3, y: 4 },
+            { x: 5, y: 6 },
+            { x: 7, y: 8 },
+          ],
+        },
+      ],
+    });
+    expect(native.runPipelineData).toHaveBeenCalledTimes(1);
+    expect(native.runPipelineIO).not.toHaveBeenCalled();
+  });
+
+  it("appends decodeQR as the trailing op with no transforms queued", async () => {
+    await pipeline().input("/abs/qr.png").decodeQR();
+
+    const { input, ops } = dataCall();
+    expect(input).toEqual({ kind: "path", value: "/abs/qr.png" });
+    expect(ops).toEqual([{ type: "decodeQR" }]);
+  });
+
+  it("runs queued transform steps before the trailing decodeQR op", async () => {
+    await pipeline()
+      .inputBase64("data:image/png;base64,QUJD")
+      .gray()
+      .gaussianBlur(5)
+      .decodeQR();
+
+    const { input, ops } = dataCall();
+    expect(input).toEqual({
+      kind: "base64",
+      value: "data:image/png;base64,QUJD",
+    });
+    expect(ops).toEqual([
+      { type: "gray" },
+      { type: "gaussianBlur", kernelSize: 5, sigmaX: 0 },
+      { type: "decodeQR" },
+    ]);
+  });
+
+  it("does not mutate the pipeline's queued ops when analyzing", async () => {
+    const base = pipeline().input("/abs/qr.png").gray();
+
+    await base.decodeQR();
+    await base.decodeQR();
+
+    expect(dataCall(0).ops).toEqual([{ type: "gray" }, { type: "decodeQR" }]);
+    expect(dataCall(1).ops).toEqual([{ type: "gray" }, { type: "decodeQR" }]);
   });
 });

@@ -113,6 +113,21 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
     resolve(result);
 }
 
+- (void)runPipelineData:(NSString *)inputJson
+                opsJson:(NSString *)opsJson
+                resolve:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject {
+    NSError *error = nil;
+    NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                             opsJson:opsJson
+                                                               error:&error];
+    if (result == nil) {
+        OpenCVReject(reject, error);
+        return;
+    }
+    resolve(result);
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {

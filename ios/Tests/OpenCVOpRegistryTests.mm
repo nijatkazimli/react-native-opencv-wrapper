@@ -444,4 +444,102 @@ static const int kHeight = 60;
   XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorUnknownOp);
 }
 
+#pragma mark - Data-returning analysis ops (runPipelineDataWithInputJson)
+
+// A pre-generated QR code carrying `kQRFixtureValue`, as a base64 PNG. We embed
+// a fixture instead of encoding at runtime because `cv::QRCodeEncoder` was only
+// added in OpenCV 4.4, while the wrapper (and its CocoaPods `OpenCV` dependency)
+// targets 4.3+. Decoding (`detectAndDecodeMulti`) is available from 4.3.
+static NSString *const kQRFixtureValue = @"https://opencv.org";
+
+- (NSString *)qrFixtureBase64 {
+  return @"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";
+}
+
+// Parse a JSON analysis result string into an NSDictionary.
+- (NSDictionary *)parseDataResult:(NSString *)json {
+  XCTAssertNotNil(json, @"analysis result was nil");
+  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+  NSError *error = nil;
+  id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+  XCTAssertNil(error, @"could not parse analysis JSON: %@", error);
+  XCTAssertTrue([parsed isKindOfClass:[NSDictionary class]], @"analysis result is not an object");
+  return (NSDictionary *)parsed;
+}
+
+- (void)testDecodeQRDecodesEncodedValue {
+  NSString *text = kQRFixtureValue;
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self qrFixtureBase64]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"decodeQR\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"decodeQR failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  NSArray *codes = parsed[@"codes"];
+  XCTAssertEqual(codes.count, 1u);
+  XCTAssertEqualObjects(codes[0][@"value"], text);
+  XCTAssertEqual([codes[0][@"corners"] count], 4u);
+}
+
+- (void)testDecodeQRRunsTransformsBeforeAnalysis {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self qrFixtureBase64]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"gray\"},{\"type\":\"decodeQR\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"decodeQR failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertEqualObjects(parsed[@"codes"][0][@"value"], kQRFixtureValue);
+}
+
+- (void)testDecodeQRReturnsNotFoundOnBlankImage {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"decodeQR\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"decodeQR failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @NO);
+  XCTAssertEqual([parsed[@"codes"] count], 0u);
+}
+
+- (void)testDataPipelineWithNoOpsFailsWithInvalidArgument {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[]"
+                                                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testUnknownAnalysisOpFailsWithStableCode {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"notAnAnalysis\"}]"
+                                                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorUnknownOp);
+}
+
 @end

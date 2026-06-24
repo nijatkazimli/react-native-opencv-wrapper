@@ -156,6 +156,21 @@ export class Pipeline<
       JSON.stringify(this.ops),
     );
   }
+
+  /**
+   * Run all queued transform steps followed by a single trailing analysis
+   * `op`, resolving with the parsed structured result. No output sink is
+   * required because analysis ops return data, not an image. Called by the
+   * terminal methods installed via {@link registerDataOp}; not intended for
+   * direct use.
+   * @internal
+   */
+  runData<Result>(op: SerializedOp): Promise<Result> {
+    return NativeOpenCV.runPipelineData(
+      JSON.stringify(this._input),
+      JSON.stringify([...this.ops, op]),
+    ).then((json) => JSON.parse(json) as Result);
+  }
 }
 
 /** Create a new {@link Pipeline} for chaining OpenCV operations. */
@@ -242,5 +257,36 @@ export function registerOp<Args extends readonly unknown[] = []>(
     ...args: Args
   ): Pipeline {
     return this.enqueue({ type: name, ...build(...args) });
+  };
+}
+
+/**
+ * Register a data-returning analysis op. Installs a terminal method named
+ * `name` on {@link Pipeline} that maps its arguments to a params object via
+ * `build`, appends `{ type: name, ...params }` as the final analysis step, and
+ * resolves with the structured result parsed from the native JSON response.
+ *
+ * Unlike {@link registerOp}, the installed method ends the chain (it runs the
+ * pipeline) and only requires an input source — analysis ops return data, not
+ * an image, so no output sink is needed. The method's public, typed signature
+ * (including its `Result` type and `input-set` `this` constraint) is
+ * contributed by the op module through `declare module "../core/pipeline"`.
+ *
+ * @param name  Unique analysis op name, matching the native handler key.
+ * @param build Maps builder arguments to the serialized params. Defaults to a
+ *              no-arg op with no params.
+ */
+export function registerDataOp<
+  Args extends readonly unknown[] = [],
+  Result = unknown,
+>(
+  name: string,
+  build: (...args: Args) => Record<string, unknown> = () => ({}),
+): void {
+  (Pipeline.prototype as unknown as Record<string, unknown>)[name] = function (
+    this: Pipeline,
+    ...args: Args
+  ): Promise<Result> {
+    return this.runData<Result>({ type: name, ...build(...args) });
   };
 }

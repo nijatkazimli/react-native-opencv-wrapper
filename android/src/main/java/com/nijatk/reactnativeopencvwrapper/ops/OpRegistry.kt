@@ -29,6 +29,10 @@ object OpRegistry {
     ErodeOp,
   ).associateBy { it.name }
 
+  private val dataOps: Map<String, DataOp> = listOf(
+    DecodeQROp,
+  ).associateBy { it.name }
+
   /** Run all serialized ops in `opsJson`, reading once and writing once. */
   fun execute(inputPath: String, outputPath: String, opsJson: String) {
     val source = OpSupport.readOrThrow(inputPath, Imgcodecs.IMREAD_COLOR)
@@ -54,6 +58,36 @@ object OpRegistry {
       return encodeOutput(output, result)
     } finally {
       result.release()
+    }
+  }
+
+  /**
+   * Data-returning variant. `inputJson` is a JSON source descriptor. Decodes
+   * the source once, applies every op in `opsJson` except the last as
+   * transforms, then runs the final op as a registered analysis op. Returns the
+   * analysis result encoded as a JSON string.
+   */
+  fun executeData(inputJson: String, opsJson: String): String {
+    val steps = JSONArray(opsJson)
+    if (steps.length() == 0) {
+      throw OpenCVInvalidArgumentException("Pipeline has no analysis op")
+    }
+
+    val lastIndex = steps.length() - 1
+    val dataOpJson = steps.getJSONObject(lastIndex)
+    val type = dataOpJson.getString("type")
+    val handler = dataOps[type]
+      ?: throw OpenCVUnknownOpException("Unknown analysis op type '$type'")
+
+    val transforms = JSONArray()
+    for (i in 0 until lastIndex) transforms.put(steps.getJSONObject(i))
+
+    val source = decodeInput(JSONObject(inputJson))
+    val current = applyOps(transforms.toString(), source)
+    try {
+      return handler.analyze(current, dataOpJson).toString()
+    } finally {
+      current.release()
     }
   }
 

@@ -4,6 +4,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.nijatk.reactnativeopencvwrapper.ops.OpRegistry
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnavailableException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
 import org.json.JSONException
 import org.json.JSONObject
@@ -85,6 +86,16 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  override fun runPipelineData(
+    inputJson: String,
+    opsJson: String,
+    promise: Promise
+  ) {
+    runReturning(promise) {
+      OpRegistry.executeData(inputJson, opsJson)
+    }
+  }
+
   private inline fun runOp(promise: Promise, outputPath: String, block: () -> Unit) {
     if (!openCVReady) {
       promise.reject("opencv_unavailable", "OpenCV native library failed to initialize")
@@ -112,6 +123,7 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
 
   private fun errorCode(t: Throwable): String = when (t) {
     is OpenCVUnknownOpException -> "opencv_unknown_op"
+    is OpenCVUnavailableException -> "opencv_unavailable"
     is OpenCVIOException -> "opencv_io_error"
     is IllegalArgumentException, is JSONException -> "opencv_invalid_argument"
     else -> "opencv_error"

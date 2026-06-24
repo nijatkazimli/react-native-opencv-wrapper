@@ -20,6 +20,13 @@ typedef cv::Mat (^OpenCVOpHandler)(const cv::Mat &current,
                                    NSDictionary *params,
                                    NSError **error);
 
+/// Handler for a single analysis op: receives the current image and the op's
+/// JSON params, and returns a JSON-serializable `NSDictionary` of structured
+/// results. On failure it returns `nil` and populates `*error`.
+typedef NSDictionary *_Nullable (^OpenCVDataHandler)(const cv::Mat &current,
+                                                     NSDictionary *params,
+                                                     NSError **error);
+
 @interface OpenCVOpRegistry : NSObject
 
 /// Register a handler under `name`. Called automatically by OPENCV_REGISTER_OP.
@@ -27,6 +34,13 @@ typedef cv::Mat (^OpenCVOpHandler)(const cv::Mat &current,
 
 /// Look up a previously registered handler, or `nil`.
 + (OpenCVOpHandler)handlerForName:(NSString *)name;
+
+/// Register an analysis handler under `name`. Called automatically by
+/// OPENCV_REGISTER_DATA_OP.
++ (void)registerDataOp:(NSString *)name handler:(OpenCVDataHandler)handler;
+
+/// Look up a previously registered analysis handler, or `nil`.
++ (OpenCVDataHandler)dataHandlerForName:(NSString *)name;
 
 /// Read `inputPath` once, apply every op in the JSON array `opsJson` in order,
 /// and write the result to `outputPath` once. Returns `NO` and sets `*error`
@@ -52,6 +66,14 @@ typedef cv::Mat (^OpenCVOpHandler)(const cv::Mat &current,
                       opName:(NSString *)opName
                       params:(NSDictionary *)params
                        error:(NSError **)error;
+
+/// Data-returning variant: `inputJson` is a JSON source descriptor. Decodes the
+/// source once, applies every op in `opsJson` except the last as transforms,
+/// then runs the final op as a registered analysis op. Returns the analysis
+/// result encoded as a JSON string, or `nil` (and sets `*error`) on failure.
++ (NSString *)runPipelineDataWithInputJson:(NSString *)inputJson
+                                   opsJson:(NSString *)opsJson
+                                     error:(NSError **)error;
 
 @end
 
@@ -126,6 +148,19 @@ BOOL OpenCVOddPositive(int k);
   @implementation _OpenCVOpRegistrar_##IDENT                                   \
   + (void)load {                                                                \
     [OpenCVOpRegistry registerOp:(NAME) handler:(BLOCK)];                       \
+  }                                                                             \
+  @end
+
+// Analysis-op counterpart of OPENCV_REGISTER_OP. The handler block is taken as
+// a variadic argument so its internal commas (e.g. in NSDictionary literals)
+// are not mistaken for macro argument separators. `BLOCK` is an
+// OpenCVDataHandler returning a JSON-serializable NSDictionary of results.
+#define OPENCV_REGISTER_DATA_OP(IDENT, NAME, ...)                              \
+  @interface _OpenCVDataOpRegistrar_##IDENT : NSObject                         \
+  @end                                                                          \
+  @implementation _OpenCVDataOpRegistrar_##IDENT                               \
+  + (void)load {                                                                \
+    [OpenCVOpRegistry registerDataOp:(NAME) handler:(__VA_ARGS__)];             \
   }                                                                             \
   @end
 
