@@ -15,15 +15,7 @@ object DecodeQROp : DataOp {
   override val name = "decodeQR"
 
   override fun analyze(current: Mat, params: JSONObject): JSONObject {
-    // detectAndDecodeMulti requires OpenCV >= 4.3.0. The host app may provide
-    // its own (older) OpenCV, so validate before calling into it.
-    if (Core.getVersionMajor() < 4 ||
-      (Core.getVersionMajor() == 4 && Core.getVersionMinor() < 3)
-    ) {
-      throw OpenCVUnavailableException(
-        "decodeQR requires OpenCV >= 4.3.0 (found ${Core.VERSION})",
-      )
-    }
+    requireQrSupport()
 
     val detector = QRCodeDetector()
     val infos = mutableListOf<String>()
@@ -34,26 +26,49 @@ object DecodeQROp : DataOp {
       false
     }
 
-    val codes = JSONArray()
-    try {
-      if (ok) {
-        for (i in infos.indices) {
-          val corners = JSONArray()
-          if (i < points.rows()) {
-            for (j in 0 until points.cols()) {
-              val p = points.get(i, j)
-              if (p != null && p.size >= 2) {
-                corners.put(JSONObject().put("x", p[0]).put("y", p[1]))
-              }
-            }
-          }
-          codes.put(JSONObject().put("value", infos[i]).put("corners", corners))
-        }
-      }
+    val codes = try {
+      if (ok) buildCodes(infos, points) else JSONArray()
     } finally {
       points.release()
     }
 
     return JSONObject().put("found", codes.length() > 0).put("codes", codes)
+  }
+
+  /**
+   * `detectAndDecodeMulti` requires OpenCV >= 4.3.0. The host app may provide
+   * its own (older) OpenCV, so validate before calling into it.
+   */
+  private fun requireQrSupport() {
+    val major = Core.getVersionMajor()
+    val minor = Core.getVersionMinor()
+    if (major < 4 || (major == 4 && minor < 3)) {
+      throw OpenCVUnavailableException(
+        "decodeQR requires OpenCV >= 4.3.0 (found ${Core.VERSION})",
+      )
+    }
+  }
+
+  /** Build the `codes` array, pairing each decoded payload with its corners. */
+  private fun buildCodes(infos: List<String>, points: Mat): JSONArray {
+    val codes = JSONArray()
+    for (i in infos.indices) {
+      val corners = cornersForRow(points, i)
+      codes.put(JSONObject().put("value", infos[i]).put("corners", corners))
+    }
+    return codes
+  }
+
+  /** Extract the four `{ x, y }` corner points for the QR code at `row`. */
+  private fun cornersForRow(points: Mat, row: Int): JSONArray {
+    val corners = JSONArray()
+    if (row >= points.rows()) return corners
+    for (col in 0 until points.cols()) {
+      val p = points.get(row, col)
+      if (p != null && p.size >= 2) {
+        corners.put(JSONObject().put("x", p[0]).put("y", p[1]))
+      }
+    }
+    return corners
   }
 }
