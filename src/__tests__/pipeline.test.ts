@@ -42,7 +42,7 @@ const native = NativeOpenCV as jest.Mocked<typeof NativeOpenCV>;
 
 /** Parse the input/output/ops args of the Nth runPipelineIO call. */
 function ioCall(n = 0) {
-  const [inputJson, outputJson, opsJson] = native.runPipelineIO.mock.calls[n];
+  const [inputJson, outputJson, opsJson] = native.runPipelineIO.mock.calls[n]!;
   return {
     input: JSON.parse(inputJson),
     output: JSON.parse(outputJson),
@@ -229,6 +229,7 @@ describe("Pipeline builder", () => {
       .flip("both")
       .dilate(3, 2)
       .erode(5, 3)
+      .scanDocument()
       .run();
 
     expect(ioCall().ops).toEqual([
@@ -248,13 +249,14 @@ describe("Pipeline builder", () => {
       { type: "flip", direction: "both" },
       { type: "dilate", kernelSize: 3, iterations: 2 },
       { type: "erode", kernelSize: 5, iterations: 3 },
+      { type: "scanDocument" },
     ]);
   });
 });
 
 /** Parse the input/ops args of the Nth runPipelineData call. */
 function dataCall(n = 0) {
-  const [inputJson, opsJson] = native.runPipelineData.mock.calls[n];
+  const [inputJson, opsJson] = native.runPipelineData.mock.calls[n]!;
   return {
     input: JSON.parse(inputJson),
     ops: JSON.parse(opsJson),
@@ -318,5 +320,45 @@ describe("Data-returning analysis ops", () => {
 
     expect(dataCall(0).ops).toEqual([{ type: "gray" }, { type: "decodeQR" }]);
     expect(dataCall(1).ops).toEqual([{ type: "gray" }, { type: "decodeQR" }]);
+  });
+
+  it("detectDocument resolves with the parsed corner result", async () => {
+    native.runPipelineData.mockResolvedValueOnce(
+      JSON.stringify({
+        found: true,
+        corners: [
+          { x: 10, y: 20 },
+          { x: 110, y: 25 },
+          { x: 105, y: 200 },
+          { x: 8, y: 195 },
+        ],
+        width: 320,
+        height: 240,
+      }),
+    );
+
+    const result = await pipeline().input("/abs/doc.png").detectDocument();
+
+    expect(result).toEqual({
+      found: true,
+      corners: [
+        { x: 10, y: 20 },
+        { x: 110, y: 25 },
+        { x: 105, y: 200 },
+        { x: 8, y: 195 },
+      ],
+      width: 320,
+      height: 240,
+    });
+    expect(native.runPipelineData).toHaveBeenCalledTimes(1);
+    expect(native.runPipelineIO).not.toHaveBeenCalled();
+  });
+
+  it("appends detectDocument as the trailing op after transforms", async () => {
+    await pipeline().input("/abs/doc.png").gray().detectDocument();
+
+    const { input, ops } = dataCall();
+    expect(input).toEqual({ kind: "path", value: "/abs/doc.png" });
+    expect(ops).toEqual([{ type: "gray" }, { type: "detectDocument" }]);
   });
 });

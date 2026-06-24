@@ -123,26 +123,28 @@ URIs), and every async call resolves with the output path.
 
 ### Operations
 
-| Operation     | Method / function                             | Parameters                                                                                                    |
-| ------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                             |
-| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                   |
-| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                |
-| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                             |
-| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`) |
-| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                      |
-| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                        |
-| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                   |
-| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                       |
-| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
-| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
+| Operation     | Method / function                             | Parameters                                                                                                                                                    |
+| ------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                                                                             |
+| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                   |
+| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                                                                |
+| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                                                                             |
+| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`)                                                 |
+| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                                                                      |
+| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                                                                        |
+| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                                                                   |
+| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                                                                       |
+| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                     |
+| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                     |
+| Scan document | `scanDocument(options?)`                      | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop) |
 
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
 
-| Analysis op | Method       | Returns                                                                       |
-| ----------- | ------------ | ----------------------------------------------------------------------------- |
-| Decode QR   | `decodeQR()` | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops) |
+| Analysis op     | Method             | Returns                                                                                                    |
+| --------------- | ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Decode QR       | `decodeQR()`       | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops)                              |
+| Detect document | `detectDocument()` | `DetectDocumentResult` — four document corners, see [Structured results](#structured-results-analysis-ops) |
 
 ### Standalone
 
@@ -306,6 +308,98 @@ interface DecodeQRResult {
 > [OpenCV integration](#opencv-integration)) and it is older, the call
 > rejects with the `opencv_unavailable` code.
 
+### Document scanning
+
+`scanDocument()` finds the largest document-like quadrilateral in the frame and
+returns a top-down, perspective-corrected crop — a one-call "scan this receipt /
+page / card" operation. It is an ordinary transform op, so it ends with
+`output()`/`run()` (or use the standalone helper):
+
+```ts
+import { pipeline, scanDocument } from "@nijatk/react-native-opencv-wrapper";
+
+// Fluent pipeline
+await pipeline().input(photo).scanDocument().output(scan).run();
+
+// Standalone
+await scanDocument(photo, scan);
+```
+
+#### Output mode and aspect ratio
+
+`scanDocument(options?)` accepts an optional `mode` and `aspectRatio`:
+
+- `mode`: `"color"` (default), `"gray"`, or `"bw"`. The `"bw"` mode applies an
+  adaptive threshold for a crisp black-and-white "scanned paper" look, ideal for
+  printed text.
+- `aspectRatio`: force the output to a fixed `width / height` ratio instead of
+  inferring it from the detected edges (e.g. `Math.SQRT1_2` ≈ 0.707 for portrait
+  A‑series paper). Must be positive.
+
+```ts
+// Crisp black-and-white scan, forced to A4 portrait proportions
+await pipeline()
+  .input(photo)
+  .scanDocument({ mode: "bw", aspectRatio: Math.SQRT1_2 })
+  .output(scan)
+  .run();
+
+// Standalone, grayscale
+await scanDocument(photo, scan, { mode: "gray" });
+```
+
+If no document-like quadrilateral is found, the call rejects with the
+`opencv_document_not_found` code:
+
+```ts
+try {
+  await scanDocument(photo, scan);
+} catch (e) {
+  if (e.code === "opencv_document_not_found") {
+    // ask the user to retake the photo with the whole page in frame
+  }
+}
+```
+
+#### Detect only (corners for a live overlay)
+
+`detectDocument()` runs the **same** detector but returns the four document
+corners _without_ warping — ideal for drawing a live edge overlay on a camera
+preview, or for feeding the corners into your own crop. It is a terminal
+analysis op (input only, no `output()`/`run()`), and a missing document is
+**not** an error: it resolves with `{ found: false, corners: [] }`, which suits
+per-frame use.
+
+```ts
+import {
+  pipeline,
+  type DetectDocumentResult,
+} from "@nijatk/react-native-opencv-wrapper";
+
+const doc: DetectDocumentResult = await pipeline()
+  .inputBase64(frame.base64)
+  .detectDocument();
+
+if (doc.found) {
+  // doc.corners are tl, tr, br, bl in pixels of a doc.width × doc.height image.
+  // Scale them to your <Image>/preview size to draw an overlay:
+  const sx = viewWidth / doc.width;
+  const sy = viewHeight / doc.height;
+  const points = doc.corners.map((c) => ({ x: c.x * sx, y: c.y * sy }));
+}
+```
+
+The result shape is:
+
+```ts
+interface DetectDocumentResult {
+  found: boolean; // true when a document-like quad was located
+  corners: { x: number; y: number }[]; // tl, tr, br, bl (empty if not found)
+  width: number; // px width of the analysed image (corner coordinate space)
+  height: number; // px height of the analysed image
+}
+```
+
 ### Dynamic single ops
 
 `standaloneOps` exposes every registered op by name (fully typed), and
@@ -327,13 +421,14 @@ await runStandaloneOp("threshold", input, output, 127, 255, "toZero");
 Every async call rejects with a stable `code` you can branch on, plus a
 human-readable message:
 
-| Code                      | Meaning                                                                                                                                                           |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `opencv_invalid_argument` | Missing/invalid parameter, out-of-range value, or unknown enum                                                                                                    |
-| `opencv_io_error`         | Could not read the input or write the output image                                                                                                                |
-| `opencv_unknown_op`       | A pipeline referenced an op `type` with no registered handler                                                                                                     |
-| `opencv_unavailable`      | OpenCV is missing a required capability: the native library failed to initialize, or a host-provided OpenCV is too old for the op (e.g. `decodeQR` needs ≥ 4.3.0) |
-| `opencv_error`            | Unexpected / uncategorized native error                                                                                                                           |
+| Code                        | Meaning                                                                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opencv_invalid_argument`   | Missing/invalid parameter, out-of-range value, or unknown enum                                                                                                    |
+| `opencv_io_error`           | Could not read the input or write the output image                                                                                                                |
+| `opencv_unknown_op`         | A pipeline referenced an op `type` with no registered handler                                                                                                     |
+| `opencv_document_not_found` | `scanDocument` could not find a document-like quadrilateral in the image                                                                                          |
+| `opencv_unavailable`        | OpenCV is missing a required capability: the native library failed to initialize, or a host-provided OpenCV is too old for the op (e.g. `decodeQR` needs ≥ 4.3.0) |
+| `opencv_error`              | Unexpected / uncategorized native error                                                                                                                           |
 
 ```ts
 try {

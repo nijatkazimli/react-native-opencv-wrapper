@@ -542,4 +542,135 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorUnknownOp);
 }
 
+#pragma mark - Document scanning (scanDocument)
+
+// Render a bright, skewed quadrilateral "document" on a dark background and
+// return its file path. The quad is deliberately non-axis-aligned so the
+// perspective correction has something to undo.
+- (NSString *)writeDocumentImage:(NSString *)name {
+  cv::Mat canvas(240, 320, CV_8UC3, cv::Scalar(15, 15, 15));
+  std::vector<cv::Point> quad = {
+      cv::Point(60, 30),
+      cv::Point(280, 55),
+      cv::Point(265, 210),
+      cv::Point(45, 195),
+  };
+  cv::fillConvexPoly(canvas, quad, cv::Scalar(235, 240, 245));
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:name];
+  bool ok = cv::imwrite(path.UTF8String, canvas);
+  XCTAssertTrue(ok, @"failed to write document image");
+  return path;
+}
+
+- (void)testScanDocumentRectifiesDetectedQuad {
+  NSString *input = [self writeDocumentImage:@"scan-in.png"];
+  NSString *output = [self outputPath:@"scan-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"scanDocument\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"scanDocument failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertGreaterThan(result.cols, 100);
+  XCTAssertGreaterThan(result.rows, 100);
+}
+
+- (void)testScanDocumentFailsWhenNoDocument {
+  NSString *input = [self writeSourceImage:@"scan-blank-in.png"];
+  NSString *output = [self outputPath:@"scan-blank-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"scanDocument\"}]"
+                                             error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorDocumentNotFound);
+}
+
+- (void)testScanDocumentBwModeProducesBinaryImage {
+  NSString *input = [self writeDocumentImage:@"scan-bw-in.png"];
+  NSString *output = [self outputPath:@"scan-bw-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"scanDocument\",\"mode\":\"bw\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"scanDocument bw failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  // Adaptive threshold yields a strictly black-or-white image.
+  for (int r = 0; r < result.rows; r++) {
+    for (int c = 0; c < result.cols; c++) {
+      uchar v = result.at<uchar>(r, c);
+      XCTAssertTrue(v == 0 || v == 255, @"non-binary pixel %d", v);
+    }
+  }
+}
+
+- (void)testScanDocumentAspectRatioOverridesOutputSize {
+  NSString *input = [self writeDocumentImage:@"scan-ar-in.png"];
+  NSString *output = [self outputPath:@"scan-ar-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"scanDocument\",\"aspectRatio\":2.0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"scanDocument aspectRatio failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  double ratio = (double)result.cols / (double)result.rows;
+  XCTAssertEqualWithAccuracy(ratio, 2.0, 0.05);
+}
+
+#pragma mark - Document detection (detectDocument)
+
+- (void)testDetectDocumentReturnsFourOrderedCorners {
+  NSString *input = [self writeDocumentImage:@"detect-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"detectDocument\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"detectDocument failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  NSArray *corners = parsed[@"corners"];
+  XCTAssertEqual(corners.count, 4u);
+  XCTAssertEqualObjects(parsed[@"width"], @320);
+  XCTAssertEqualObjects(parsed[@"height"], @240);
+  // Corners are ordered tl, tr, br, bl.
+  double tlx = [corners[0][@"x"] doubleValue], tly = [corners[0][@"y"] doubleValue];
+  double brx = [corners[2][@"x"] doubleValue], bry = [corners[2][@"y"] doubleValue];
+  XCTAssertLessThan(tlx, brx);
+  XCTAssertLessThan(tly, bry);
+}
+
+- (void)testDetectDocumentReturnsNotFoundOnBlankImage {
+  NSString *input = [self writeSourceImage:@"detect-blank-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"detectDocument\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"detectDocument failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @NO);
+  XCTAssertEqual([parsed[@"corners"] count], 0u);
+}
+
 @end

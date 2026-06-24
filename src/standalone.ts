@@ -7,6 +7,7 @@ import {
 import type { FlipDirection } from "./ops/flip";
 import type { Interpolation } from "./ops/resize";
 import type { RotateAngle } from "./ops/rotate";
+import type { ScanDocumentOptions } from "./ops/scanDocument";
 import type { ThresholdType } from "./ops/threshold";
 import "./ops";
 
@@ -174,4 +175,20 @@ export function erode(
     kernelSize,
     iterations,
   );
+}
+
+/**
+ * Standalone wrapper for `scanDocument`: detect the largest document-like
+ * quadrilateral and write a deskewed, perspective-corrected crop to
+ * `outputPath`.
+ *
+ * Rejects with code `opencv_document_not_found` when no suitable
+ * quadrilateral is detected.
+ */
+export function scanDocument(
+  inputPath: string,
+  outputPath: string,
+  options?: ScanDocumentOptions,
+): Promise<string> {
+  return runStandaloneOp("scanDocument", inputPath, outputPath, options);
 }

@@ -4,6 +4,7 @@ import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nijatk.reactnativeopencvwrapper.ops.OpRegistry
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVDocumentNotFoundException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVInvalidArgumentException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
@@ -17,6 +18,8 @@ import org.opencv.android.OpenCVLoader
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.MatOfByte
+import org.opencv.core.MatOfPoint
+import org.opencv.core.Point
 import org.opencv.core.Scalar
 import org.opencv.core.Size
 import org.opencv.imgcodecs.Imgcodecs
@@ -495,5 +498,120 @@ class OpRegistryInstrumentedTest {
       """{"kind":"base64","value":"${sourceBase64()}"}""",
       """[{"type":"notAnAnalysis"}]""",
     )
+  }
+
+  // --- Document scanning (scanDocument) -------------------------------------
+
+  /**
+   * Render a bright, convex quadrilateral "document" on a dark background and
+   * return its file path. The quad is deliberately skewed so the perspective
+   * correction has something to undo.
+   */
+  private fun writeDocumentImage(name: String): String {
+    val canvas = Mat(240, 320, CvType.CV_8UC3, Scalar(15.0, 15.0, 15.0))
+    val corners = MatOfPoint(
+      Point(60.0, 30.0),
+      Point(280.0, 55.0),
+      Point(265.0, 210.0),
+      Point(45.0, 195.0),
+    )
+    Imgproc.fillConvexPoly(canvas, corners, Scalar(235.0, 240.0, 245.0))
+    val file = File(cacheDir, name)
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    corners.release()
+    canvas.release()
+    return file.absolutePath
+  }
+
+  @Test
+  fun scanDocumentRectifiesDetectedQuad() {
+    val input = writeDocumentImage("scan-in.png")
+    val output = outputPath("scan-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument"}]""")
+
+    val result = readResult(output)
+    // The rectified document should be a sizable, non-trivial image.
+    assertTrue("width should be substantial", result.cols() > 100)
+    assertTrue("height should be substantial", result.rows() > 100)
+    result.release()
+  }
+
+  @Test(expected = OpenCVDocumentNotFoundException::class)
+  fun scanDocumentThrowsWhenNoDocument() {
+    val input = writeSourceImage("scan-blank-in.png")
+    val output = outputPath("scan-blank-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument"}]""")
+  }
+
+  @Test
+  fun scanDocumentBwModeProducesBinaryImage() {
+    val input = writeDocumentImage("scan-bw-in.png")
+    val output = outputPath("scan-bw-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument","mode":"bw"}]""")
+
+    val result = readResult(output)
+    assertEquals("bw output should be single-channel", 1, result.channels())
+    // Adaptive threshold yields a strictly black-or-white image.
+    val buffer = ByteArray((result.total() * result.channels()).toInt())
+    result.get(0, 0, buffer)
+    assertTrue(
+      "all pixels should be 0 or 255",
+      buffer.all { it.toInt() and 0xFF == 0 || it.toInt() and 0xFF == 255 },
+    )
+    result.release()
+  }
+
+  @Test
+  fun scanDocumentAspectRatioOverridesOutputSize() {
+    val input = writeDocumentImage("scan-ar-in.png")
+    val output = outputPath("scan-ar-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument","aspectRatio":2.0}]""")
+
+    val result = readResult(output)
+    val ratio = result.cols().toDouble() / result.rows().toDouble()
+    assertEquals(2.0, ratio, 0.05)
+    result.release()
+  }
+
+  // --- Document detection (detectDocument) ----------------------------------
+
+  @Test
+  fun detectDocumentReturnsFourOrderedCorners() {
+    val input = writeDocumentImage("detect-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"detectDocument"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue("expected a document to be found", parsed.getBoolean("found"))
+    val corners = parsed.getJSONArray("corners")
+    assertEquals(4, corners.length())
+    assertEquals(320, parsed.getInt("width"))
+    assertEquals(240, parsed.getInt("height"))
+    // Corners are ordered tl, tr, br, bl: the top edge sits above the bottom.
+    val tl = corners.getJSONObject(0)
+    val br = corners.getJSONObject(2)
+    assertTrue("top-left should be above-left of bottom-right", tl.getDouble("y") < br.getDouble("y"))
+    assertTrue("top-left should be left of bottom-right", tl.getDouble("x") < br.getDouble("x"))
+  }
+
+  @Test
+  fun detectDocumentReturnsNotFoundOnBlankImage() {
+    val input = writeSourceImage("detect-blank-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"detectDocument"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals(false, parsed.getBoolean("found"))
+    assertEquals(0, parsed.getJSONArray("corners").length())
   }
 }
