@@ -576,4 +576,42 @@ class OpRegistryInstrumentedTest {
     assertEquals(2.0, ratio, 0.05)
     result.release()
   }
+
+  // --- Document detection (detectDocument) ----------------------------------
+
+  @Test
+  fun detectDocumentReturnsFourOrderedCorners() {
+    val input = writeDocumentImage("detect-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"detectDocument"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue("expected a document to be found", parsed.getBoolean("found"))
+    val corners = parsed.getJSONArray("corners")
+    assertEquals(4, corners.length())
+    assertEquals(320, parsed.getInt("width"))
+    assertEquals(240, parsed.getInt("height"))
+    // Corners are ordered tl, tr, br, bl: the top edge sits above the bottom.
+    val tl = corners.getJSONObject(0)
+    val br = corners.getJSONObject(2)
+    assertTrue("top-left should be above-left of bottom-right", tl.getDouble("y") < br.getDouble("y"))
+    assertTrue("top-left should be left of bottom-right", tl.getDouble("x") < br.getDouble("x"))
+  }
+
+  @Test
+  fun detectDocumentReturnsNotFoundOnBlankImage() {
+    val input = writeSourceImage("detect-blank-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"detectDocument"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals(false, parsed.getBoolean("found"))
+    assertEquals(0, parsed.getJSONArray("corners").length())
+  }
 }

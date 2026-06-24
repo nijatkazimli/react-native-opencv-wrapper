@@ -32,6 +32,7 @@ object OpRegistry {
 
   private val dataOps: Map<String, DataOp> = listOf(
     DecodeQROp,
+    DetectDocumentOp,
   ).associateBy { it.name }
 
   /** Run all serialized ops in `opsJson`, reading once and writing once. */

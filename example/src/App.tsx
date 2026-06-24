@@ -25,6 +25,14 @@ const SAMPLE_PNG_BASE64 =
 const DIR = RNFS.CachesDirectoryPath;
 const INPUT_PATH = `${DIR}/sample.png`;
 
+// Fixed on-screen size of every result image (see styles.image). The corner
+// overlay maps detector coordinates onto this box, accounting for the
+// letterboxing introduced by `resizeMode: "contain"`.
+const IMAGE_W = 200;
+const IMAGE_H = 260;
+const DOT = 12;
+const OVERLAY_COLOR = "#39FF14";
+
 async function ensureSampleImage() {
   // Always overwrite — base64 contents may have changed across app updates,
   // and a stale corrupt copy would silently break every op.
@@ -56,12 +64,16 @@ const DEMOS: readonly Demo[] = [
   },
 ];
 
+type Corner = { x: number; y: number };
+type DetectOverlay = { corners: Corner[]; width: number; height: number };
+
 type Result = {
   id: string;
   label: string;
   uri: string;
   note: string;
   compareUri?: string;
+  overlay?: DetectOverlay;
 };
 
 export default function App() {
@@ -184,6 +196,33 @@ export default function App() {
     }
   }, []);
 
+  const runDetectDocumentDemo = useCallback(async () => {
+    try {
+      const doc = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .detectDocument();
+      const note = doc.found
+        ? `corners (in ${doc.width}\u00d7${doc.height}): ${doc.corners
+            .map((c) => `(${Math.round(c.x)},${Math.round(c.y)})`)
+            .join(" ")}`
+        : "no document found";
+      setResults((r) => [
+        {
+          id: `detect-${Date.now()}`,
+          label: "Detect Document",
+          uri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+          note,
+          overlay: doc.found
+            ? { corners: doc.corners, width: doc.width, height: doc.height }
+            : undefined,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Detect Document: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -204,6 +243,7 @@ export default function App() {
         <Button label="Decode QR" onPress={runDecodeQRDemo} />
         <Button label="Scan Document" onPress={runScanDocumentDemo} />
         <Button label="Scan B&W" onPress={runScanBwDemo} />
+        <Button label="Detect Document" onPress={runDetectDocumentDemo} />
       </View>
 
       {results.map((r) => (
@@ -221,12 +261,71 @@ export default function App() {
                 <Image source={{ uri: r.uri }} style={styles.image} />
               </View>
             </View>
+          ) : r.overlay ? (
+            <View style={styles.overlayWrap}>
+              <Image source={{ uri: r.uri }} style={styles.overlayImage} />
+              <CornerOverlay overlay={r.overlay} />
+            </View>
           ) : (
             <Image source={{ uri: r.uri }} style={styles.image} />
           )}
         </View>
       ))}
     </ScrollView>
+  );
+}
+
+/**
+ * Draw the four detected document corners (dots + connecting edges) over the
+ * original image. Detector coordinates live in a `width \u00d7 height` space, so we
+ * map them onto the on-screen image rect, accounting for the letterbox padding
+ * that `resizeMode: "contain"` adds inside the fixed IMAGE_W \u00d7 IMAGE_H box.
+ */
+function CornerOverlay({ overlay }: Readonly<{ overlay: DetectOverlay }>) {
+  const { corners, width, height } = overlay;
+  if (corners.length < 4) return null;
+
+  const scale = Math.min(IMAGE_W / width, IMAGE_H / height);
+  const offX = (IMAGE_W - width * scale) / 2;
+  const offY = (IMAGE_H - height * scale) / 2;
+  const pts = corners.map((c) => ({
+    x: offX + c.x * scale,
+    y: offY + c.y * scale,
+  }));
+  const edges = [
+    [pts[0], pts[1]],
+    [pts[1], pts[2]],
+    [pts[2], pts[3]],
+    [pts[3], pts[0]],
+  ];
+
+  return (
+    <View style={styles.overlay} pointerEvents="none">
+      {edges.map(([a, b], i) => {
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const angle = Math.atan2(b.y - a.y, b.x - a.x);
+        return (
+          <View
+            key={`edge-${i}`}
+            style={[
+              styles.edge,
+              {
+                left: (a.x + b.x) / 2 - len / 2,
+                top: (a.y + b.y) / 2 - 1,
+                width: len,
+                transform: [{ rotate: `${angle}rad` }],
+              },
+            ]}
+          />
+        );
+      })}
+      {pts.map((p, i) => (
+        <View
+          key={`corner-${i}`}
+          style={[styles.dot, { left: p.x - DOT / 2, top: p.y - DOT / 2 }]}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -257,12 +356,35 @@ const styles = StyleSheet.create({
   resultBlock: { gap: 4, marginTop: 12 },
   path: { fontSize: 11, color: "#666" },
   image: {
-    width: 200,
-    height: 260,
+    width: IMAGE_W,
+    height: IMAGE_H,
     backgroundColor: "#eee",
     resizeMode: "contain",
   },
   compareRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
   compareCell: { gap: 4 },
   caption: { fontSize: 12, fontWeight: "600", color: "#444" },
+  overlayWrap: {
+    position: "relative",
+    width: IMAGE_W,
+    height: IMAGE_H,
+    alignSelf: "flex-start",
+    backgroundColor: "#eee",
+  },
+  overlayImage: { ...StyleSheet.absoluteFill, resizeMode: "contain" },
+  overlay: { ...StyleSheet.absoluteFill },
+  edge: {
+    position: "absolute",
+    height: 2,
+    backgroundColor: OVERLAY_COLOR,
+  },
+  dot: {
+    position: "absolute",
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    backgroundColor: OVERLAY_COLOR,
+    borderWidth: 1,
+    borderColor: "#000",
+  },
 });

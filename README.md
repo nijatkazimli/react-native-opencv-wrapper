@@ -141,9 +141,10 @@ URIs), and every async call resolves with the output path.
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
 
-| Analysis op | Method       | Returns                                                                       |
-| ----------- | ------------ | ----------------------------------------------------------------------------- |
-| Decode QR   | `decodeQR()` | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops) |
+| Analysis op     | Method             | Returns                                                                                                    |
+| --------------- | ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Decode QR       | `decodeQR()`       | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops)                              |
+| Detect document | `detectDocument()` | `DetectDocumentResult` — four document corners, see [Structured results](#structured-results-analysis-ops) |
 
 ### Standalone
 
@@ -357,6 +358,45 @@ try {
   if (e.code === "opencv_document_not_found") {
     // ask the user to retake the photo with the whole page in frame
   }
+}
+```
+
+#### Detect only (corners for a live overlay)
+
+`detectDocument()` runs the **same** detector but returns the four document
+corners _without_ warping — ideal for drawing a live edge overlay on a camera
+preview, or for feeding the corners into your own crop. It is a terminal
+analysis op (input only, no `output()`/`run()`), and a missing document is
+**not** an error: it resolves with `{ found: false, corners: [] }`, which suits
+per-frame use.
+
+```ts
+import {
+  pipeline,
+  type DetectDocumentResult,
+} from "@nijatk/react-native-opencv-wrapper";
+
+const doc: DetectDocumentResult = await pipeline()
+  .inputBase64(frame.base64)
+  .detectDocument();
+
+if (doc.found) {
+  // doc.corners are tl, tr, br, bl in pixels of a doc.width × doc.height image.
+  // Scale them to your <Image>/preview size to draw an overlay:
+  const sx = viewWidth / doc.width;
+  const sy = viewHeight / doc.height;
+  const points = doc.corners.map((c) => ({ x: c.x * sx, y: c.y * sy }));
+}
+```
+
+The result shape is:
+
+```ts
+interface DetectDocumentResult {
+  found: boolean; // true when a document-like quad was located
+  corners: { x: number; y: number }[]; // tl, tr, br, bl (empty if not found)
+  width: number; // px width of the analysed image (corner coordinate space)
+  height: number; // px height of the analysed image
 }
 ```
 

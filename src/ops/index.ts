@@ -15,4 +15,5 @@ export * from "./medianBlur";
 export * from "./dilate";
 export * from "./erode";
 export * from "./decodeQR";
+export * from "./detectDocument";
 export * from "./scanDocument";

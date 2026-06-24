@@ -182,3 +182,29 @@ OPENCV_REGISTER_OP(scanDocument, @"scanDocument",
     }
     return warped;
 });
+
+// Detect the largest document-like quad and return its ordered corners without
+// warping (shares the detector above with scanDocument). Result:
+// `{ "found": bool, "corners": [{ "x", "y" }...], "width": int, "height": int }`.
+// A missing document is not an error here — it returns `found: false`.
+OPENCV_REGISTER_DATA_OP(detectDocument, @"detectDocument",
+                        ^NSDictionary *(const Mat &current, NSDictionary *params, NSError **error) {
+    std::vector<Point> quad;
+    BOOL found = OpenCVFindDocumentQuad(current, quad);
+
+    NSMutableArray<NSDictionary *> *corners = [NSMutableArray array];
+    if (found) {
+        Point2f ordered[4];
+        OpenCVOrderCorners(quad, ordered);
+        for (int i = 0; i < 4; i++) {
+            [corners addObject:@{ @"x": @(ordered[i].x), @"y": @(ordered[i].y) }];
+        }
+    }
+
+    return @{
+        @"found": @(found ? YES : NO),
+        @"corners": corners,
+        @"width": @(current.cols),
+        @"height": @(current.rows),
+    };
+});

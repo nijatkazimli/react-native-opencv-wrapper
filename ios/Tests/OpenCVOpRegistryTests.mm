@@ -631,4 +631,46 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqualWithAccuracy(ratio, 2.0, 0.05);
 }
 
+#pragma mark - Document detection (detectDocument)
+
+- (void)testDetectDocumentReturnsFourOrderedCorners {
+  NSString *input = [self writeDocumentImage:@"detect-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"detectDocument\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"detectDocument failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  NSArray *corners = parsed[@"corners"];
+  XCTAssertEqual(corners.count, 4u);
+  XCTAssertEqualObjects(parsed[@"width"], @320);
+  XCTAssertEqualObjects(parsed[@"height"], @240);
+  // Corners are ordered tl, tr, br, bl.
+  double tlx = [corners[0][@"x"] doubleValue], tly = [corners[0][@"y"] doubleValue];
+  double brx = [corners[2][@"x"] doubleValue], bry = [corners[2][@"y"] doubleValue];
+  XCTAssertLessThan(tlx, brx);
+  XCTAssertLessThan(tly, bry);
+}
+
+- (void)testDetectDocumentReturnsNotFoundOnBlankImage {
+  NSString *input = [self writeSourceImage:@"detect-blank-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"detectDocument\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"detectDocument failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @NO);
+  XCTAssertEqual([parsed[@"corners"] count], 0u);
+}
+
 @end
