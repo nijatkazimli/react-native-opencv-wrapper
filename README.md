@@ -177,10 +177,10 @@ await erode(input, output, 3);
 
 ### Pipeline
 
-Chain several operations and execute them in a single native pass. `input()`
-and `output()` are **required** — the types prevent you from calling `run()`
-until both are set, so a missing path is a compile-time error rather than a
-runtime failure.
+Chain several operations and execute them in a single native pass. A source
+(`input()` or `inputBase64()`) and a sink (`output()` or `outputBase64()`) are
+**required** — the types prevent you from calling `run()` until both are set,
+so a missing source/sink is a compile-time error rather than a runtime failure.
 
 ```ts
 import { pipeline } from "@nijatk/react-native-opencv-wrapper";
@@ -204,6 +204,44 @@ const base = pipeline().input("/abs/in.png").gray();
 await base.clone().output("/abs/edges.png").canny(50, 150).run();
 await base.clone().output("/abs/blurred.png").gaussianBlur(7).run();
 ```
+
+### Base64 / in-memory I/O
+
+To skip the disk entirely, source from a base64 string and/or return the result
+as base64 instead of a file. This pairs naturally with image pickers and
+network buffers, which already hand you base64.
+
+`inputBase64()` accepts a raw base64 string or a full `data:` URI (the prefix is
+stripped natively). `outputBase64(format?)` makes `run()` resolve with the
+encoded image string (`format` defaults to `"png"`; `"jpg"`, `"jpeg"`, `"webp"`
+and `"bmp"` are also supported).
+
+```ts
+// base64 in, file out
+await pipeline()
+  .inputBase64(pickedImage.base64) // or "data:image/png;base64,..."
+  .output("/abs/path/output.png")
+  .resize(640, 480)
+  .gray()
+  .run();
+
+// file in, base64 out
+const pngBase64 = await pipeline()
+  .input("/abs/path/input.jpg")
+  .outputBase64() // -> resolves with a base64 PNG string
+  .canny(50, 150)
+  .run();
+
+// base64 in, base64 out (no filesystem touched)
+const jpgBase64 = await pipeline()
+  .inputBase64(srcBase64)
+  .outputBase64("jpg")
+  .resize(256, 256)
+  .run();
+```
+
+`input()`/`inputBase64()` and `output()`/`outputBase64()` are interchangeable —
+mix and match either source with either sink.
 
 ### Dynamic single ops
 
@@ -257,14 +295,15 @@ The repository includes a working example app at `example/`.
 
 ## Roadmap & limitations
 
-This wrapper covers a focused set of file-to-file operations. Known gaps and
-planned improvements:
+This wrapper covers a focused set of image-processing operations, with file or
+base64 sources and sinks. Known gaps and planned improvements:
 
 **Current limitations**
 
-- **File-based only.** Operations read from and write to disk paths. There is no
-  in-memory bitmap, base64, or texture input/output, so chaining with other
-  native modules requires round-tripping through files.
+- **No raw bitmap / texture I/O.** Sources and sinks are file paths or base64
+  strings (see [Base64 / in-memory I/O](#base64--in-memory-io)). There is no
+  zero-copy bitmap or GPU texture input/output, so interop with other native
+  modules still goes through a file or a base64 round-trip.
 - **No live camera / frame processing.** There is no frame processor or
   per-frame API; this is not a replacement for camera-stream vision pipelines.
 - **Single-image ops.** No multi-image inputs (blending, stitching, template
@@ -282,7 +321,6 @@ planned improvements:
 
 **Planned / nice-to-have**
 
-- In-memory and base64 image I/O to avoid disk round-trips.
 - Returning structured data from analysis ops (e.g. detected rectangles).
 - More operations: color conversions, morphology shapes, warp/perspective,
   adaptive threshold, bitwise ops.

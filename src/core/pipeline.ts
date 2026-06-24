@@ -10,6 +10,29 @@ import type { InputState, OutputState } from "./state";
 export type SerializedOp = { type: string } & Record<string, unknown>;
 
 /**
+ * Encoded image formats accepted by {@link Pipeline.outputBase64}. Maps to the
+ * file extension OpenCV uses to pick an encoder.
+ */
+export type ImageFormat = "png" | "jpg" | "jpeg" | "webp" | "bmp";
+
+/**
+ * Where a pipeline reads its source image from: an absolute filesystem path or
+ * an in-memory base64 string (an optional `data:` URI prefix is accepted and
+ * stripped natively).
+ */
+export type InputSource =
+  | { kind: "path"; value: string }
+  | { kind: "base64"; value: string };
+
+/**
+ * Where a pipeline writes its result: to an absolute filesystem path, or
+ * returned to JS as a base64 string encoded with `ext` (e.g. `".png"`).
+ */
+export type OutputSink =
+  | { kind: "path"; value: string }
+  | { kind: "base64"; ext: string };
+
+/**
  * Operation argument map extended by each op module via declaration merging.
  *
  * Example in an op file:
@@ -59,19 +82,39 @@ export class Pipeline<
   Input extends InputState = "missing-input",
   Output extends OutputState = "missing-output",
 > {
-  private _input?: string;
-  private _output?: string;
+  private _input?: InputSource;
+  private _output?: OutputSink;
   private readonly ops: SerializedOp[] = [];
 
   /** Set the absolute source image path (no `file://` scheme). */
   input(path: string): Pipeline<"input-set", Output> {
-    this._input = path;
+    this._input = { kind: "path", value: path };
+    return this as unknown as Pipeline<"input-set", Output>;
+  }
+
+  /**
+   * Use an in-memory base64-encoded image as the source instead of a file.
+   * A `data:` URI prefix (e.g. `data:image/png;base64,...`) is accepted and
+   * stripped natively, so values from image pickers can be passed as-is.
+   */
+  inputBase64(data: string): Pipeline<"input-set", Output> {
+    this._input = { kind: "base64", value: data };
     return this as unknown as Pipeline<"input-set", Output>;
   }
 
   /** Set the absolute output path; written once after all steps run. */
   output(path: string): Pipeline<Input, "output-set"> {
-    this._output = path;
+    this._output = { kind: "path", value: path };
+    return this as unknown as Pipeline<Input, "output-set">;
+  }
+
+  /**
+   * Return the result as a base64 string instead of writing to disk. `run()`
+   * resolves with the encoded image; `format` selects the encoder (default
+   * `"png"`).
+   */
+  outputBase64(format: ImageFormat = "png"): Pipeline<Input, "output-set"> {
+    this._output = { kind: "base64", ext: `.${format}` };
     return this as unknown as Pipeline<Input, "output-set">;
   }
 
@@ -91,24 +134,25 @@ export class Pipeline<
    */
   clone(): Pipeline<Input, Output> {
     const copy = new Pipeline<Input, Output>();
-    copy._input = this._input;
-    copy._output = this._output;
+    copy._input = this._input ? { ...this._input } : undefined;
+    copy._output = this._output ? { ...this._output } : undefined;
     copy.ops.push(...this.ops.map((op) => ({ ...op })));
     return copy;
   }
 
   /**
    * Execute all queued steps natively in a single pass and resolve with the
-   * output path. Only callable on a {@link ReadyPipeline}; the `this:`
+   * result: the output path for a file sink, or the encoded base64 string for
+   * a base64 sink. Only callable on a {@link ReadyPipeline}; the `this:`
    * constraint makes a missing `input`/`output` a compile-time error.
    */
   run(this: ReadyPipeline): Promise<string> {
     if (this.ops.length === 0) {
       return Promise.reject(new Error("Pipeline: no steps queued"));
     }
-    return NativeOpenCV.runPipeline(
-      this._input!,
-      this._output!,
+    return NativeOpenCV.runPipelineIO(
+      JSON.stringify(this._input),
+      JSON.stringify(this._output),
       JSON.stringify(this.ops),
     );
   }

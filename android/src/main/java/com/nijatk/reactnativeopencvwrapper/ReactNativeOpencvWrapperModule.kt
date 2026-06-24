@@ -74,6 +74,17 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  override fun runPipelineIO(
+    inputJson: String,
+    outputJson: String,
+    opsJson: String,
+    promise: Promise
+  ) {
+    runReturning(promise) {
+      OpRegistry.executeIO(inputJson, outputJson, opsJson)
+    }
+  }
+
   private inline fun runOp(promise: Promise, outputPath: String, block: () -> Unit) {
     if (!openCVReady) {
       promise.reject("opencv_unavailable", "OpenCV native library failed to initialize")
@@ -82,6 +93,18 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
     try {
       block()
       promise.resolve(outputPath)
+    } catch (t: Throwable) {
+      promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
+    }
+  }
+
+  private inline fun runReturning(promise: Promise, block: () -> String) {
+    if (!openCVReady) {
+      promise.reject("opencv_unavailable", "OpenCV native library failed to initialize")
+      return
+    }
+    try {
+      promise.resolve(block())
     } catch (t: Throwable) {
       promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
     }

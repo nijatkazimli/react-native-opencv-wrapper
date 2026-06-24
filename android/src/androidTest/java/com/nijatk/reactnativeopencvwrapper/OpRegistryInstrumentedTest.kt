@@ -1,8 +1,10 @@
 package com.nijatk.reactnativeopencvwrapper
 
+import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nijatk.reactnativeopencvwrapper.ops.OpRegistry
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVInvalidArgumentException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
 import org.junit.Assert.assertEquals
@@ -14,6 +16,7 @@ import org.junit.runner.RunWith
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.CvType
 import org.opencv.core.Mat
+import org.opencv.core.MatOfByte
 import org.opencv.core.Scalar
 import org.opencv.imgcodecs.Imgcodecs
 import java.io.File
@@ -272,5 +275,145 @@ class OpRegistryInstrumentedTest {
     assertEquals(WIDTH, result.cols())
     assertEquals(HEIGHT, result.rows())
     result.release()
+  }
+
+  // --- In-memory / base64 I/O (executeIO) ------------------------------------
+
+  /** Encode the synthetic source image to a base64 string for `executeIO`. */
+  private fun sourceBase64(ext: String = ".png"): String {
+    val mat = Mat(HEIGHT, WIDTH, CvType.CV_8UC3, Scalar(10.0, 20.0, 30.0))
+    val buffer = MatOfByte()
+    assertTrue("failed to encode source image", Imgcodecs.imencode(ext, mat, buffer))
+    val bytes = buffer.toArray()
+    buffer.release()
+    mat.release()
+    return Base64.encodeToString(bytes, Base64.NO_WRAP)
+  }
+
+  /** Decode a base64 result string back into a [Mat] for assertions. */
+  private fun decodeBase64Result(b64: String): Mat {
+    val bytes = Base64.decode(b64, Base64.DEFAULT)
+    val encoded = MatOfByte(*bytes)
+    val mat = Imgcodecs.imdecode(encoded, Imgcodecs.IMREAD_UNCHANGED)
+    encoded.release()
+    assertTrue("base64 result could not be decoded", !mat.empty())
+    return mat
+  }
+
+  @Test
+  fun base64InputToPathOutput() {
+    val output = outputPath("io-b64-in.png")
+
+    val result = OpRegistry.executeIO(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """{"kind":"path","value":"$output"}""",
+      """[{"type":"gray"}]""",
+    )
+
+    assertEquals(output, result)
+    val mat = readResult(output)
+    assertEquals(1, mat.channels())
+    assertEquals(WIDTH, mat.cols())
+    assertEquals(HEIGHT, mat.rows())
+    mat.release()
+  }
+
+  @Test
+  fun pathInputToBase64Output() {
+    val input = writeSourceImage("io-b64-out.png")
+
+    val result = OpRegistry.executeIO(
+      """{"kind":"path","value":"$input"}""",
+      """{"kind":"base64","ext":".png"}""",
+      """[{"type":"gray"}]""",
+    )
+
+    assertTrue("base64 result should not be empty", result.isNotEmpty())
+    val mat = decodeBase64Result(result)
+    assertEquals(1, mat.channels())
+    assertEquals(WIDTH, mat.cols())
+    assertEquals(HEIGHT, mat.rows())
+    mat.release()
+  }
+
+  @Test
+  fun base64InputToBase64Output() {
+    val result = OpRegistry.executeIO(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """{"kind":"base64","ext":".png"}""",
+      """[{"type":"resize","width":20,"height":10,"interpolation":"linear"}]""",
+    )
+
+    val mat = decodeBase64Result(result)
+    assertEquals(20, mat.cols())
+    assertEquals(10, mat.rows())
+    mat.release()
+  }
+
+  @Test
+  fun base64OutputDefaultsToPngWhenExtOmitted() {
+    val result = OpRegistry.executeIO(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """{"kind":"base64"}""",
+      """[{"type":"gray"}]""",
+    )
+
+    val mat = decodeBase64Result(result)
+    assertEquals(1, mat.channels())
+    assertEquals(WIDTH, mat.cols())
+    assertEquals(HEIGHT, mat.rows())
+    mat.release()
+  }
+
+  @Test
+  fun base64InputAcceptsDataUriPrefix() {
+    val output = outputPath("io-datauri.png")
+
+    val result = OpRegistry.executeIO(
+      """{"kind":"base64","value":"data:image/png;base64,${sourceBase64()}"}""",
+      """{"kind":"path","value":"$output"}""",
+      """[{"type":"gray"}]""",
+    )
+
+    assertEquals(output, result)
+    val mat = readResult(output)
+    assertEquals(1, mat.channels())
+    mat.release()
+  }
+
+  @Test(expected = OpenCVIOException::class)
+  fun invalidBase64InputThrows() {
+    OpRegistry.executeIO(
+      """{"kind":"base64","value":"not valid base64!!!"}""",
+      """{"kind":"base64","ext":".png"}""",
+      """[{"type":"gray"}]""",
+    )
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun unknownInputKindThrows() {
+    OpRegistry.executeIO(
+      """{"kind":"bogus"}""",
+      """{"kind":"base64","ext":".png"}""",
+      """[{"type":"gray"}]""",
+    )
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun unknownOutputKindThrows() {
+    OpRegistry.executeIO(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """{"kind":"bogus"}""",
+      """[{"type":"gray"}]""",
+    )
+  }
+
+  @Test(expected = OpenCVUnknownOpException::class)
+  fun unknownOpThrowsThroughExecuteIO() {
+    OpRegistry.executeIO(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """{"kind":"base64","ext":".png"}""",
+      """[{"type":"notAnOp"}]""",
+    )
   }
 }

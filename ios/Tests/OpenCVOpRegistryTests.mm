@@ -40,6 +40,27 @@ static const int kHeight = 60;
   return mat;
 }
 
+// Encode the synthetic source image to a base64 string for the in-memory API.
+- (NSString *)sourceBase64:(NSString *)ext {
+  cv::Mat mat(kHeight, kWidth, CV_8UC3, cv::Scalar(10, 20, 30));
+  std::vector<uchar> buf;
+  bool ok = cv::imencode(ext.UTF8String, mat, buf);
+  XCTAssertTrue(ok, @"failed to encode source image");
+  NSData *data = [NSData dataWithBytes:buf.data() length:buf.size()];
+  return [data base64EncodedStringWithOptions:0];
+}
+
+// Decode a base64 result string back into a Mat for assertions.
+- (cv::Mat)decodeBase64Result:(NSString *)b64 {
+  NSData *data = [[NSData alloc] initWithBase64EncodedString:b64
+                                                     options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  XCTAssertNotNil(data, @"base64 result could not be decoded");
+  std::vector<uchar> buf((const uchar *)data.bytes, (const uchar *)data.bytes + data.length);
+  cv::Mat mat = cv::imdecode(buf, cv::IMREAD_UNCHANGED);
+  XCTAssertFalse(mat.empty(), @"base64 result decoded to an empty image");
+  return mat;
+}
+
 - (void)testGrayProducesSingleChannelImage {
   NSString *input = [self writeSourceImage:@"gray-in.png"];
   NSString *output = [self outputPath:@"gray-out.png"];
@@ -275,6 +296,152 @@ static const int kHeight = 60;
   cv::Mat result = [self readResult:output];
   XCTAssertEqual(result.cols, kWidth);
   XCTAssertEqual(result.rows, kHeight);
+}
+
+#pragma mark - In-memory / base64 I/O (runPipelineWithInputJson)
+
+- (void)testBase64InputToPathOutput {
+  NSString *output = [self outputPath:@"io-b64-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+  NSString *outputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", output];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                     outputJson:outputJson
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(error, @"pipeline failed: %@", error);
+  XCTAssertEqualObjects(result, output);
+
+  cv::Mat mat = [self readResult:output];
+  XCTAssertEqual(mat.channels(), 1);
+  XCTAssertEqual(mat.cols, kWidth);
+  XCTAssertEqual(mat.rows, kHeight);
+}
+
+- (void)testPathInputToBase64Output {
+  NSString *input = [self writeSourceImage:@"io-b64-out.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                     outputJson:@"{\"kind\":\"base64\",\"ext\":\".png\"}"
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(error, @"pipeline failed: %@", error);
+  XCTAssertGreaterThan(result.length, 0u);
+
+  cv::Mat mat = [self decodeBase64Result:result];
+  XCTAssertEqual(mat.channels(), 1);
+  XCTAssertEqual(mat.cols, kWidth);
+  XCTAssertEqual(mat.rows, kHeight);
+}
+
+- (void)testBase64InputToBase64Output {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineWithInputJson:inputJson
+                    outputJson:@"{\"kind\":\"base64\",\"ext\":\".png\"}"
+                       opsJson:@"[{\"type\":\"resize\",\"width\":20,\"height\":10,\"interpolation\":\"linear\"}]"
+                         error:&error];
+  XCTAssertNil(error, @"pipeline failed: %@", error);
+
+  cv::Mat mat = [self decodeBase64Result:result];
+  XCTAssertEqual(mat.cols, 20);
+  XCTAssertEqual(mat.rows, 10);
+}
+
+- (void)testBase64OutputDefaultsToPngWhenExtOmitted {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                     outputJson:@"{\"kind\":\"base64\"}"
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(error, @"pipeline failed: %@", error);
+
+  cv::Mat mat = [self decodeBase64Result:result];
+  XCTAssertEqual(mat.channels(), 1);
+  XCTAssertEqual(mat.cols, kWidth);
+  XCTAssertEqual(mat.rows, kHeight);
+}
+
+- (void)testBase64InputAcceptsDataURIPrefix {
+  NSString *output = [self outputPath:@"io-datauri.png"];
+  NSString *inputJson = [NSString
+      stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"data:image/png;base64,%@\"}",
+                       [self sourceBase64:@".png"]];
+  NSString *outputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", output];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                     outputJson:outputJson
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(error, @"pipeline failed: %@", error);
+  XCTAssertEqualObjects(result, output);
+
+  cv::Mat mat = [self readResult:output];
+  XCTAssertEqual(mat.channels(), 1);
+}
+
+- (void)testInvalidBase64InputFailsWithIOError {
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:@"{\"kind\":\"base64\",\"value\":\"???\"}"
+                                                     outputJson:@"{\"kind\":\"base64\",\"ext\":\".png\"}"
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorIO);
+}
+
+- (void)testUnknownInputKindFailsWithInvalidArgument {
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:@"{\"kind\":\"bogus\"}"
+                                                     outputJson:@"{\"kind\":\"base64\",\"ext\":\".png\"}"
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testUnknownOutputKindFailsWithInvalidArgument {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                     outputJson:@"{\"kind\":\"bogus\"}"
+                                                        opsJson:@"[{\"type\":\"gray\"}]"
+                                                          error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testUnknownOpThroughInputJsonFailsWithStableCode {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                     outputJson:@"{\"kind\":\"base64\",\"ext\":\".png\"}"
+                                                        opsJson:@"[{\"type\":\"notAnOp\"}]"
+                                                          error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorUnknownOp);
 }
 
 @end
