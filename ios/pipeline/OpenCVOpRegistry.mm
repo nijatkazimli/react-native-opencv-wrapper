@@ -11,6 +11,7 @@ NSString *const OpenCVErrorInvalidArgument = @"opencv_invalid_argument";
 NSString *const OpenCVErrorIO = @"opencv_io_error";
 NSString *const OpenCVErrorUnknownOp = @"opencv_unknown_op";
 NSString *const OpenCVErrorUnavailable = @"opencv_unavailable";
+NSString *const OpenCVErrorDocumentNotFound = @"opencv_document_not_found";
 
 NSError *OpenCVMakeCodedError(NSString *code, NSString *message) {
     return [NSError errorWithDomain:kOpenCVErrorDomain

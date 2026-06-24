@@ -4,6 +4,7 @@ import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nijatk.reactnativeopencvwrapper.ops.OpRegistry
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVDocumentNotFoundException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVInvalidArgumentException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
@@ -17,6 +18,8 @@ import org.opencv.android.OpenCVLoader
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.MatOfByte
+import org.opencv.core.MatOfPoint
+import org.opencv.core.Point
 import org.opencv.core.Scalar
 import org.opencv.core.Size
 import org.opencv.imgcodecs.Imgcodecs
@@ -495,5 +498,50 @@ class OpRegistryInstrumentedTest {
       """{"kind":"base64","value":"${sourceBase64()}"}""",
       """[{"type":"notAnAnalysis"}]""",
     )
+  }
+
+  // --- Document scanning (scanDocument) -------------------------------------
+
+  /**
+   * Render a bright, convex quadrilateral "document" on a dark background and
+   * return its file path. The quad is deliberately skewed so the perspective
+   * correction has something to undo.
+   */
+  private fun writeDocumentImage(name: String): String {
+    val canvas = Mat(240, 320, CvType.CV_8UC3, Scalar(15.0, 15.0, 15.0))
+    val corners = MatOfPoint(
+      Point(60.0, 30.0),
+      Point(280.0, 55.0),
+      Point(265.0, 210.0),
+      Point(45.0, 195.0),
+    )
+    Imgproc.fillConvexPoly(canvas, corners, Scalar(235.0, 240.0, 245.0))
+    val file = File(cacheDir, name)
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    corners.release()
+    canvas.release()
+    return file.absolutePath
+  }
+
+  @Test
+  fun scanDocumentRectifiesDetectedQuad() {
+    val input = writeDocumentImage("scan-in.png")
+    val output = outputPath("scan-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument"}]""")
+
+    val result = readResult(output)
+    // The rectified document should be a sizable, non-trivial image.
+    assertTrue("width should be substantial", result.cols() > 100)
+    assertTrue("height should be substantial", result.rows() > 100)
+    result.release()
+  }
+
+  @Test(expected = OpenCVDocumentNotFoundException::class)
+  fun scanDocumentThrowsWhenNoDocument() {
+    val input = writeSourceImage("scan-blank-in.png")
+    val output = outputPath("scan-blank-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument"}]""")
   }
 }

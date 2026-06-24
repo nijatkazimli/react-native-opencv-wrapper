@@ -27,6 +27,7 @@ object OpRegistry {
     MedianBlurOp,
     DilateOp,
     ErodeOp,
+    ScanDocumentOp,
   ).associateBy { it.name }
 
   private val dataOps: Map<String, DataOp> = listOf(

@@ -175,3 +175,18 @@ export function erode(
     iterations,
   );
 }
+
+/**
+ * Standalone wrapper for `scanDocument`: detect the largest document-like
+ * quadrilateral and write a deskewed, perspective-corrected crop to
+ * `outputPath`.
+ *
+ * Rejects with code `opencv_document_not_found` when no suitable
+ * quadrilateral is detected.
+ */
+export function scanDocument(
+  inputPath: string,
+  outputPath: string,
+): Promise<string> {
+  return runStandaloneOp("scanDocument", inputPath, outputPath);
+}

@@ -229,6 +229,7 @@ describe("Pipeline builder", () => {
       .flip("both")
       .dilate(3, 2)
       .erode(5, 3)
+      .scanDocument()
       .run();
 
     expect(ioCall().ops).toEqual([
@@ -248,6 +249,7 @@ describe("Pipeline builder", () => {
       { type: "flip", direction: "both" },
       { type: "dilate", kernelSize: 3, iterations: 2 },
       { type: "erode", kernelSize: 5, iterations: 3 },
+      { type: "scanDocument" },
     ]);
   });
 });

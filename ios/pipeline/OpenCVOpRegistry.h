@@ -87,6 +87,7 @@ extern NSString *const OpenCVErrorInvalidArgument;  // "opencv_invalid_argument"
 extern NSString *const OpenCVErrorIO;               // "opencv_io_error"
 extern NSString *const OpenCVErrorUnknownOp;        // "opencv_unknown_op"
 extern NSString *const OpenCVErrorUnavailable;      // "opencv_unavailable"
+extern NSString *const OpenCVErrorDocumentNotFound; // "opencv_document_not_found"
 
 // --- Shared helpers usable by op files --------------------------------------
 

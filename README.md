@@ -136,6 +136,7 @@ URIs), and every async call resolves with the output path.
 | Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                       |
 | Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
 | Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
+| Scan document | `scanDocument()`                              | – (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                 |
 
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
@@ -306,6 +307,36 @@ interface DecodeQRResult {
 > [OpenCV integration](#opencv-integration)) and it is older, the call
 > rejects with the `opencv_unavailable` code.
 
+### Document scanning
+
+`scanDocument()` finds the largest document-like quadrilateral in the frame and
+returns a top-down, perspective-corrected crop — a one-call "scan this receipt /
+page / card" operation. It is an ordinary transform op, so it ends with
+`output()`/`run()` (or use the standalone helper):
+
+```ts
+import { pipeline, scanDocument } from "@nijatk/react-native-opencv-wrapper";
+
+// Fluent pipeline
+await pipeline().input(photo).scanDocument().output(scan).run();
+
+// Standalone
+await scanDocument(photo, scan);
+```
+
+If no document-like quadrilateral is found, the call rejects with the
+`opencv_document_not_found` code:
+
+```ts
+try {
+  await scanDocument(photo, scan);
+} catch (e) {
+  if (e.code === "opencv_document_not_found") {
+    // ask the user to retake the photo with the whole page in frame
+  }
+}
+```
+
 ### Dynamic single ops
 
 `standaloneOps` exposes every registered op by name (fully typed), and
@@ -327,13 +358,14 @@ await runStandaloneOp("threshold", input, output, 127, 255, "toZero");
 Every async call rejects with a stable `code` you can branch on, plus a
 human-readable message:
 
-| Code                      | Meaning                                                                                                                                                           |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `opencv_invalid_argument` | Missing/invalid parameter, out-of-range value, or unknown enum                                                                                                    |
-| `opencv_io_error`         | Could not read the input or write the output image                                                                                                                |
-| `opencv_unknown_op`       | A pipeline referenced an op `type` with no registered handler                                                                                                     |
-| `opencv_unavailable`      | OpenCV is missing a required capability: the native library failed to initialize, or a host-provided OpenCV is too old for the op (e.g. `decodeQR` needs ≥ 4.3.0) |
-| `opencv_error`            | Unexpected / uncategorized native error                                                                                                                           |
+| Code                        | Meaning                                                                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opencv_invalid_argument`   | Missing/invalid parameter, out-of-range value, or unknown enum                                                                                                    |
+| `opencv_io_error`           | Could not read the input or write the output image                                                                                                                |
+| `opencv_unknown_op`         | A pipeline referenced an op `type` with no registered handler                                                                                                     |
+| `opencv_document_not_found` | `scanDocument` could not find a document-like quadrilateral in the image                                                                                          |
+| `opencv_unavailable`        | OpenCV is missing a required capability: the native library failed to initialize, or a host-provided OpenCV is too old for the op (e.g. `decodeQR` needs ≥ 4.3.0) |
+| `opencv_error`              | Unexpected / uncategorized native error                                                                                                                           |
 
 ```ts
 try {

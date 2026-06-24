@@ -15,6 +15,7 @@ import {
   type ReadyPipeline,
 } from "@nijatk/react-native-opencv-wrapper";
 import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
+import { SAMPLE_DOCUMENT_PNG_BASE64 } from "./documentSample";
 
 // A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
 // the example needs no extra assets / camera permissions.
@@ -133,6 +134,27 @@ export default function App() {
     }
   }, []);
 
+  const runScanDocumentDemo = useCallback(async () => {
+    try {
+      const outBase64 = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PNG_BASE64)
+        .outputBase64("png")
+        .scanDocument()
+        .run();
+      setResults((r) => [
+        {
+          id: `scan-${Date.now()}`,
+          label: "Scan Document",
+          uri: `data:image/png;base64,${outBase64}`,
+          note: `rectified document (${outBase64.length} chars)`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Scan Document: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -151,6 +173,7 @@ export default function App() {
         ))}
         <Button label="Base64 I/O" onPress={runBase64Demo} />
         <Button label="Decode QR" onPress={runDecodeQRDemo} />
+        <Button label="Scan Document" onPress={runScanDocumentDemo} />
       </View>
 
       {results.map((r) => (

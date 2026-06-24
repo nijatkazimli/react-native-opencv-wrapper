@@ -13,6 +13,7 @@ import {
   medianBlur,
   dilate,
   erode,
+  scanDocument,
   standaloneOps,
   runStandaloneOp,
 } from "../standalone";
@@ -145,6 +146,12 @@ describe("pipeline-backed standalone wrappers", () => {
   it("erode defaults iterations to 1", async () => {
     await erode("/in.png", "/out.png", 3);
     expect(opsOf()).toEqual([{ type: "erode", kernelSize: 3, iterations: 1 }]);
+  });
+
+  it("scanDocument runs a single scanDocument op", async () => {
+    const result = await scanDocument("/in.png", "/out.png");
+    expect(result).toBe("/out.png");
+    expect(opsOf()).toEqual([{ type: "scanDocument" }]);
   });
 });
 

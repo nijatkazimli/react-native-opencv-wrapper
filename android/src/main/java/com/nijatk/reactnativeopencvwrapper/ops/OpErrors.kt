@@ -21,6 +21,9 @@ class OpenCVUnknownOpException(message: String) : RuntimeException(message)
  */
 class OpenCVUnavailableException(message: String) : RuntimeException(message)
 
+/** A detection op (e.g. scanDocument) found no matching feature in the image. */
+class OpenCVDocumentNotFoundException(message: String) : RuntimeException(message)
+
 /** Throw an invalid-argument failure with `message`. */
 internal fun invalidArg(message: String): Nothing =
   throw OpenCVInvalidArgumentException(message)

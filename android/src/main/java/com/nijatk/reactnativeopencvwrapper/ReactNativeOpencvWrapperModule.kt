@@ -3,6 +3,7 @@ package com.nijatk.reactnativeopencvwrapper
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.nijatk.reactnativeopencvwrapper.ops.OpRegistry
+import com.nijatk.reactnativeopencvwrapper.ops.OpenCVDocumentNotFoundException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnavailableException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
@@ -124,6 +125,7 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
   private fun errorCode(t: Throwable): String = when (t) {
     is OpenCVUnknownOpException -> "opencv_unknown_op"
     is OpenCVUnavailableException -> "opencv_unavailable"
+    is OpenCVDocumentNotFoundException -> "opencv_document_not_found"
     is OpenCVIOException -> "opencv_io_error"
     is IllegalArgumentException, is JSONException -> "opencv_invalid_argument"
     else -> "opencv_error"
