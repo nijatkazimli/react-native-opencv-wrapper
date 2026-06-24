@@ -123,20 +123,20 @@ URIs), and every async call resolves with the output path.
 
 ### Operations
 
-| Operation     | Method / function                             | Parameters                                                                                                    |
-| ------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                             |
-| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                   |
-| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                |
-| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                             |
-| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`) |
-| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                      |
-| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                        |
-| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                   |
-| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                       |
-| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
-| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
-| Scan document | `scanDocument()`                              | – (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                 |
+| Operation     | Method / function                             | Parameters                                                                                                                                                    |
+| ------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                                                                             |
+| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                   |
+| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                                                                |
+| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                                                                             |
+| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`)                                                 |
+| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                                                                      |
+| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                                                                        |
+| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                                                                   |
+| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                                                                       |
+| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                     |
+| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                     |
+| Scan document | `scanDocument(options?)`                      | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop) |
 
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
@@ -322,6 +322,29 @@ await pipeline().input(photo).scanDocument().output(scan).run();
 
 // Standalone
 await scanDocument(photo, scan);
+```
+
+#### Output mode and aspect ratio
+
+`scanDocument(options?)` accepts an optional `mode` and `aspectRatio`:
+
+- `mode`: `"color"` (default), `"gray"`, or `"bw"`. The `"bw"` mode applies an
+  adaptive threshold for a crisp black-and-white "scanned paper" look, ideal for
+  printed text.
+- `aspectRatio`: force the output to a fixed `width / height` ratio instead of
+  inferring it from the detected edges (e.g. `Math.SQRT1_2` ≈ 0.707 for portrait
+  A‑series paper). Must be positive.
+
+```ts
+// Crisp black-and-white scan, forced to A4 portrait proportions
+await pipeline()
+  .input(photo)
+  .scanDocument({ mode: "bw", aspectRatio: Math.SQRT1_2 })
+  .output(scan)
+  .run();
+
+// Standalone, grayscale
+await scanDocument(photo, scan, { mode: "gray" });
 ```
 
 If no document-like quadrilateral is found, the call rejects with the

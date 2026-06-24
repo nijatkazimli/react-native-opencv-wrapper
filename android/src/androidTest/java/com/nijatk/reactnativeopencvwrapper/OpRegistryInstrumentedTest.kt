@@ -544,4 +544,36 @@ class OpRegistryInstrumentedTest {
 
     OpRegistry.execute(input, output, """[{"type":"scanDocument"}]""")
   }
+
+  @Test
+  fun scanDocumentBwModeProducesBinaryImage() {
+    val input = writeDocumentImage("scan-bw-in.png")
+    val output = outputPath("scan-bw-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument","mode":"bw"}]""")
+
+    val result = readResult(output)
+    assertEquals("bw output should be single-channel", 1, result.channels())
+    // Adaptive threshold yields a strictly black-or-white image.
+    val buffer = ByteArray((result.total() * result.channels()).toInt())
+    result.get(0, 0, buffer)
+    assertTrue(
+      "all pixels should be 0 or 255",
+      buffer.all { it.toInt() and 0xFF == 0 || it.toInt() and 0xFF == 255 },
+    )
+    result.release()
+  }
+
+  @Test
+  fun scanDocumentAspectRatioOverridesOutputSize() {
+    val input = writeDocumentImage("scan-ar-in.png")
+    val output = outputPath("scan-ar-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"scanDocument","aspectRatio":2.0}]""")
+
+    val result = readResult(output)
+    val ratio = result.cols().toDouble() / result.rows().toDouble()
+    assertEquals(2.0, ratio, 0.05)
+    result.release()
+  }
 }

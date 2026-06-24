@@ -7,6 +7,7 @@ import {
 import type { FlipDirection } from "./ops/flip";
 import type { Interpolation } from "./ops/resize";
 import type { RotateAngle } from "./ops/rotate";
+import type { ScanDocumentOptions } from "./ops/scanDocument";
 import type { ThresholdType } from "./ops/threshold";
 import "./ops";
 
@@ -187,6 +188,7 @@ export function erode(
 export function scanDocument(
   inputPath: string,
   outputPath: string,
+  options?: ScanDocumentOptions,
 ): Promise<string> {
-  return runStandaloneOp("scanDocument", inputPath, outputPath);
+  return runStandaloneOp("scanDocument", inputPath, outputPath, options);
 }

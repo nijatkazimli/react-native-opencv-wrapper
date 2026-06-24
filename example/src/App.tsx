@@ -15,7 +15,7 @@ import {
   type ReadyPipeline,
 } from "@nijatk/react-native-opencv-wrapper";
 import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
-import { SAMPLE_DOCUMENT_PNG_BASE64 } from "./documentSample";
+import { SAMPLE_DOCUMENT_PHOTO_BASE64 } from "./documentSample";
 
 // A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
 // the example needs no extra assets / camera permissions.
@@ -56,7 +56,13 @@ const DEMOS: readonly Demo[] = [
   },
 ];
 
-type Result = { id: string; label: string; uri: string; note: string };
+type Result = {
+  id: string;
+  label: string;
+  uri: string;
+  note: string;
+  compareUri?: string;
+};
 
 export default function App() {
   const [version, setVersion] = useState<string>("?");
@@ -137,7 +143,7 @@ export default function App() {
   const runScanDocumentDemo = useCallback(async () => {
     try {
       const outBase64 = await pipeline()
-        .inputBase64(SAMPLE_DOCUMENT_PNG_BASE64)
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
         .outputBase64("png")
         .scanDocument()
         .run();
@@ -146,12 +152,35 @@ export default function App() {
           id: `scan-${Date.now()}`,
           label: "Scan Document",
           uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
           note: `rectified document (${outBase64.length} chars)`,
         },
         ...r,
       ]);
     } catch (e) {
       setError(`Scan Document: ${(e as Error).message}`);
+    }
+  }, []);
+
+  const runScanBwDemo = useCallback(async () => {
+    try {
+      const outBase64 = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .outputBase64("png")
+        .scanDocument({ mode: "bw" })
+        .run();
+      setResults((r) => [
+        {
+          id: `scanbw-${Date.now()}`,
+          label: "Scan Document (B&W)",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+          note: `black & white scan (${outBase64.length} chars)`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Scan B&W: ${(e as Error).message}`);
     }
   }, []);
 
@@ -174,13 +203,27 @@ export default function App() {
         <Button label="Base64 I/O" onPress={runBase64Demo} />
         <Button label="Decode QR" onPress={runDecodeQRDemo} />
         <Button label="Scan Document" onPress={runScanDocumentDemo} />
+        <Button label="Scan B&W" onPress={runScanBwDemo} />
       </View>
 
       {results.map((r) => (
         <View key={r.id} style={styles.resultBlock}>
           <Text style={styles.mono}>{r.label}</Text>
           <Text style={styles.path}>{r.note}</Text>
-          <Image source={{ uri: r.uri }} style={styles.image} />
+          {r.compareUri ? (
+            <View style={styles.compareRow}>
+              <View style={styles.compareCell}>
+                <Text style={styles.caption}>Original</Text>
+                <Image source={{ uri: r.compareUri }} style={styles.image} />
+              </View>
+              <View style={styles.compareCell}>
+                <Text style={styles.caption}>Scanned</Text>
+                <Image source={{ uri: r.uri }} style={styles.image} />
+              </View>
+            </View>
+          ) : (
+            <Image source={{ uri: r.uri }} style={styles.image} />
+          )}
         </View>
       ))}
     </ScrollView>
@@ -213,5 +256,13 @@ const styles = StyleSheet.create({
   buttonText: { color: "white", fontWeight: "600" },
   resultBlock: { gap: 4, marginTop: 12 },
   path: { fontSize: 11, color: "#666" },
-  image: { width: 200, height: 200, backgroundColor: "#eee" },
+  image: {
+    width: 200,
+    height: 260,
+    backgroundColor: "#eee",
+    resizeMode: "contain",
+  },
+  compareRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
+  compareCell: { gap: 4 },
+  caption: { fontSize: 12, fontWeight: "600", color: "#444" },
 });

@@ -592,4 +592,43 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorDocumentNotFound);
 }
 
+- (void)testScanDocumentBwModeProducesBinaryImage {
+  NSString *input = [self writeDocumentImage:@"scan-bw-in.png"];
+  NSString *output = [self outputPath:@"scan-bw-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"scanDocument\",\"mode\":\"bw\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"scanDocument bw failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  // Adaptive threshold yields a strictly black-or-white image.
+  for (int r = 0; r < result.rows; r++) {
+    for (int c = 0; c < result.cols; c++) {
+      uchar v = result.at<uchar>(r, c);
+      XCTAssertTrue(v == 0 || v == 255, @"non-binary pixel %d", v);
+    }
+  }
+}
+
+- (void)testScanDocumentAspectRatioOverridesOutputSize {
+  NSString *input = [self writeDocumentImage:@"scan-ar-in.png"];
+  NSString *output = [self outputPath:@"scan-ar-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"scanDocument\",\"aspectRatio\":2.0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"scanDocument aspectRatio failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  double ratio = (double)result.cols / (double)result.rows;
+  XCTAssertEqualWithAccuracy(ratio, 2.0, 0.05);
+}
+
 @end

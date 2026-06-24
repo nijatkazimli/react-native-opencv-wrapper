@@ -153,6 +153,16 @@ describe("pipeline-backed standalone wrappers", () => {
     expect(result).toBe("/out.png");
     expect(opsOf()).toEqual([{ type: "scanDocument" }]);
   });
+
+  it("scanDocument forwards the output mode", async () => {
+    await scanDocument("/in.png", "/out.png", { mode: "bw" });
+    expect(opsOf()).toEqual([{ type: "scanDocument", mode: "bw" }]);
+  });
+
+  it("scanDocument forwards an aspect-ratio hint", async () => {
+    await scanDocument("/in.png", "/out.png", { aspectRatio: 0.7 });
+    expect(opsOf()).toEqual([{ type: "scanDocument", aspectRatio: 0.7 }]);
+  });
 });
 
 describe("standaloneOps proxy", () => {
