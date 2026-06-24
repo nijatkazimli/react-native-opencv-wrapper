@@ -54,7 +54,7 @@ const DEMOS: readonly Demo[] = [
   },
 ];
 
-type Result = { label: string; path: string };
+type Result = { id: string; label: string; uri: string; note: string };
 
 export default function App() {
   const [version, setVersion] = useState<string>("?");
@@ -77,9 +77,34 @@ export default function App() {
       const outputPath = `${DIR}/out-${label}-${Date.now()}.png`;
       const base = pipeline().input(INPUT_PATH).output(outputPath);
       const path = await configure(base).run();
-      setResults((r) => [{ label, path }, ...r]);
+      setResults((r) => [
+        { id: path, label, uri: `file://${path}`, note: path },
+        ...r,
+      ]);
     } catch (e) {
       setError(`${label}: ${(e as Error).message}`);
+    }
+  }, []);
+
+  const runBase64Demo = useCallback(async () => {
+    try {
+      const outBase64 = await pipeline()
+        .inputBase64(SAMPLE_PNG_BASE64)
+        .outputBase64("png")
+        .gray()
+        .canny(50, 150)
+        .run();
+      setResults((r) => [
+        {
+          id: `b64-${Date.now()}`,
+          label: "Base64 \u2192 Base64",
+          uri: `data:image/png;base64,${outBase64}`,
+          note: `base64 string (${outBase64.length} chars)`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Base64: ${(e as Error).message}`);
     }
   }, []);
 
@@ -99,13 +124,14 @@ export default function App() {
             onPress={() => runDemo(demo)}
           />
         ))}
+        <Button label="Base64 I/O" onPress={runBase64Demo} />
       </View>
 
       {results.map((r) => (
-        <View key={r.path} style={styles.resultBlock}>
+        <View key={r.id} style={styles.resultBlock}>
           <Text style={styles.mono}>{r.label}</Text>
-          <Text style={styles.path}>{r.path}</Text>
-          <Image source={{ uri: `file://${r.path}` }} style={styles.image} />
+          <Text style={styles.path}>{r.note}</Text>
+          <Image source={{ uri: r.uri }} style={styles.image} />
         </View>
       ))}
     </ScrollView>

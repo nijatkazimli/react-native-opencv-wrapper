@@ -48,6 +48,26 @@ export interface Spec extends TurboModule {
     outputPath: string,
     opsJson: string,
   ): Promise<string>;
+
+  /**
+   * In-memory variant of {@link runPipeline} that decouples the image source
+   * and destination from the filesystem.
+   *
+   * `inputJson` and `outputJson` are JSON-encoded source/sink descriptors:
+   *   - input:  `{"kind":"path","value":"/abs/in.png"}` or
+   *             `{"kind":"base64","value":"<base64 or data: URI>"}`
+   *   - output: `{"kind":"path","value":"/abs/out.png"}` or
+   *             `{"kind":"base64","ext":".png"}`
+   *
+   * `opsJson` is the same op array accepted by {@link runPipeline}. Resolves
+   * with the output path (path sink) or the encoded base64 string (base64
+   * sink).
+   */
+  runPipelineIO(
+    inputJson: string,
+    outputJson: string,
+    opsJson: string,
+  ): Promise<string>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>(

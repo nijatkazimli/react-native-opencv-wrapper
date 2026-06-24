@@ -36,6 +36,16 @@ typedef cv::Mat (^OpenCVOpHandler)(const cv::Mat &current,
                      opsJson:(NSString *)opsJson
                        error:(NSError **)error;
 
+/// In-memory variant: `inputJson` / `outputJson` are JSON source/sink
+/// descriptors (`{"kind":"path","value":...}` or `{"kind":"base64",...}`).
+/// Reads/decodes the source once, applies every op in `opsJson`, then writes
+/// or base64-encodes the result. Returns the output path or base64 string, or
+/// `nil` (and sets `*error`) on failure.
++ (NSString *)runPipelineWithInputJson:(NSString *)inputJson
+                            outputJson:(NSString *)outputJson
+                               opsJson:(NSString *)opsJson
+                                 error:(NSError **)error;
+
 /// Run a single registered op by name with params.
 + (BOOL)runSingleOpWithInput:(NSString *)inputPath
                       output:(NSString *)outputPath

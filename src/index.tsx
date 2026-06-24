@@ -6,6 +6,6 @@
 export * from "./ops";
 
 export { pipeline, Pipeline } from "./core/pipeline";
-export type { ReadyPipeline } from "./core/pipeline";
+export type { ReadyPipeline, ImageFormat } from "./core/pipeline";
 
 export * from "./standalone";

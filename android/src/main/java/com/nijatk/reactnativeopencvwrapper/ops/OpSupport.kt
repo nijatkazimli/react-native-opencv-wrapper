@@ -1,6 +1,8 @@
 package com.nijatk.reactnativeopencvwrapper.ops
 
+import android.util.Base64
 import org.opencv.core.Mat
+import org.opencv.core.MatOfByte
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 
@@ -29,5 +31,39 @@ object OpSupport {
   /** Write an image or throw if it cannot be encoded. */
   fun writeOrThrow(path: String, mat: Mat) {
     if (!Imgcodecs.imwrite(path, mat)) throw OpenCVIOException("Could not write image to $path")
+  }
+
+  /**
+   * Decode a base64-encoded image (with an optional `data:` URI prefix) into a
+   * [Mat], or throw if it cannot be decoded.
+   */
+  fun decodeBase64OrThrow(data: String, flag: Int): Mat {
+    val payload = data.substringAfter("base64,", data)
+    val bytes = try {
+      Base64.decode(payload, Base64.DEFAULT)
+    } catch (_: IllegalArgumentException) {
+      throw OpenCVIOException("Could not decode base64 input image")
+    }
+    val encoded = MatOfByte(*bytes)
+    val mat = Imgcodecs.imdecode(encoded, flag)
+    encoded.release()
+    if (mat.empty()) throw OpenCVIOException("Could not decode base64 input image")
+    return mat
+  }
+
+  /**
+   * Encode `mat` to base64 using the encoder selected by `ext` (e.g. `.png`),
+   * or throw if it cannot be encoded.
+   */
+  fun encodeBase64OrThrow(mat: Mat, ext: String): String {
+    val buffer = MatOfByte()
+    val ok = Imgcodecs.imencode(ext, mat, buffer)
+    if (!ok) {
+      buffer.release()
+      throw OpenCVIOException("Could not encode image as '$ext'")
+    }
+    val bytes = buffer.toArray()
+    buffer.release()
+    return Base64.encodeToString(bytes, Base64.NO_WRAP)
   }
 }

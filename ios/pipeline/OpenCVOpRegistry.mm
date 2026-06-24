@@ -62,6 +62,142 @@ static std::string OpenCVPath(NSString *path) {
     return std::string([path UTF8String]);
 }
 
+/// Parse a JSON object string (input/output descriptor) into an NSDictionary.
+static NSDictionary *OpenCVParseObject(NSString *json, NSError **error) {
+    NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *jsonError = nil;
+    id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError] : nil;
+    if (![parsed isKindOfClass:[NSDictionary class]]) {
+        if (error) *error = jsonError ?: OpenCVMakeError(@"I/O descriptor must be a JSON object");
+        return nil;
+    }
+    return (NSDictionary *)parsed;
+}
+
+/// Parse a JSON array string of ops into an NSArray.
+static NSArray *OpenCVParseOps(NSString *opsJson, NSError **error) {
+    NSData *data = [opsJson dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *jsonError = nil;
+    id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError] : nil;
+    if (![parsed isKindOfClass:[NSArray class]]) {
+        if (error) *error = jsonError ?: OpenCVMakeError(@"opsJson must be a JSON array");
+        return nil;
+    }
+    return (NSArray *)parsed;
+}
+
+/// Strip an optional `data:[mime];base64,` prefix, returning the raw payload.
+static NSString *OpenCVStripDataURI(NSString *value) {
+    NSRange marker = [value rangeOfString:@"base64,"];
+    if (marker.location != NSNotFound) {
+        return [value substringFromIndex:marker.location + marker.length];
+    }
+    return value;
+}
+
+/// Decode the source image described by `input` (a `path` or `base64`
+/// descriptor) into a BGR `Mat`. Returns an empty Mat and sets `*error` on
+/// failure.
+static Mat OpenCVDecodeInput(NSDictionary *input, NSError **error) {
+    NSString *kind = input[@"kind"];
+    if ([kind isEqualToString:@"path"]) {
+        NSString *path = OpenCVOptionalString(input, @"value");
+        Mat m = path ? cv::imread(OpenCVPath(path), cv::IMREAD_COLOR) : Mat();
+        if (m.empty()) {
+            if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO,
+                [NSString stringWithFormat:@"Could not read image at %@", path]);
+        }
+        return m;
+    }
+    if ([kind isEqualToString:@"base64"]) {
+        NSString *raw = OpenCVOptionalString(input, @"value");
+        NSData *bytes = raw
+            ? [[NSData alloc] initWithBase64EncodedString:OpenCVStripDataURI(raw)
+                                                  options:NSDataBase64DecodingIgnoreUnknownCharacters]
+            : nil;
+        if (bytes == nil) {
+            if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO, @"Could not decode base64 input image");
+            return Mat();
+        }
+        std::vector<uchar> buf((const uchar *)bytes.bytes,
+                               (const uchar *)bytes.bytes + bytes.length);
+        Mat m = cv::imdecode(buf, cv::IMREAD_COLOR);
+        if (m.empty()) {
+            if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO, @"Could not decode base64 input image");
+        }
+        return m;
+    }
+    if (error) *error = OpenCVMakeError(@"input descriptor has an unknown 'kind'");
+    return Mat();
+}
+
+/// Encode `mat` to the destination described by `output` (a `path` or `base64`
+/// descriptor). Returns the output path or the base64 string, or `nil` on
+/// failure.
+static NSString *OpenCVEncodeOutput(NSDictionary *output, const Mat &mat, NSError **error) {
+    NSString *kind = output[@"kind"];
+    if ([kind isEqualToString:@"path"]) {
+        NSString *path = OpenCVOptionalString(output, @"value");
+        if (path == nil || !cv::imwrite(OpenCVPath(path), mat)) {
+            if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO,
+                [NSString stringWithFormat:@"Could not write image to %@", path]);
+            return nil;
+        }
+        return path;
+    }
+    if ([kind isEqualToString:@"base64"]) {
+        NSString *ext = OpenCVOptionalString(output, @"ext") ?: @".png";
+        std::vector<uchar> buf;
+        if (!cv::imencode(std::string([ext UTF8String]), mat, buf)) {
+            if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO,
+                [NSString stringWithFormat:@"Could not encode image as '%@'", ext]);
+            return nil;
+        }
+        NSData *data = [NSData dataWithBytes:buf.data() length:buf.size()];
+        return [data base64EncodedStringWithOptions:0];
+    }
+    if (error) *error = OpenCVMakeError(@"output descriptor has an unknown 'kind'");
+    return nil;
+}
+
+/// Apply every op in `ops` to `current` in place. Returns `NO` and sets
+/// `*error` on the first failing op (bad shape, unknown type, invalid params).
+static BOOL OpenCVApplyOps(NSArray *ops, Mat &current, NSError **error) {
+    for (NSUInteger i = 0; i < ops.count; i++) {
+        id rawOp = ops[i];
+        if (![rawOp isKindOfClass:[NSDictionary class]]) {
+            if (error) {
+                *error = OpenCVMakeError([NSString stringWithFormat:@"Pipeline op #%lu is not an object", (unsigned long)i]);
+            }
+            return NO;
+        }
+        NSDictionary *op = (NSDictionary *)rawOp;
+        NSString *type = op[@"type"];
+        if (![type isKindOfClass:[NSString class]]) {
+            if (error) {
+                *error = OpenCVMakeError([NSString stringWithFormat:@"Pipeline op #%lu missing 'type'", (unsigned long)i]);
+            }
+            return NO;
+        }
+        OpenCVOpHandler handler = [OpenCVOpRegistry handlerForName:type];
+        if (handler == nil) {
+            if (error) {
+                *error = OpenCVMakeCodedError(OpenCVErrorUnknownOp,
+                    [NSString stringWithFormat:@"Unknown pipeline op type '%@'", type]);
+            }
+            return NO;
+        }
+        NSError *opError = nil;
+        Mat next = handler(current, op, &opError);
+        if (opError != nil) {
+            if (error) *error = opError;
+            return NO;
+        }
+        current = next;
+    }
+    return YES;
+}
+
 @implementation OpenCVOpRegistry
 
 + (NSMutableDictionary<NSString *, OpenCVOpHandler> *)registry {
@@ -90,16 +226,8 @@ static std::string OpenCVPath(NSString *path) {
                       output:(NSString *)outputPath
                      opsJson:(NSString *)opsJson
                        error:(NSError **)error {
-    NSData *data = [opsJson dataUsingEncoding:NSUTF8StringEncoding];
-    NSError *jsonError = nil;
-    id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError] : nil;
-    if (![parsed isKindOfClass:[NSArray class]]) {
-        if (error) {
-            *error = jsonError ?: OpenCVMakeError(@"opsJson must be a JSON array");
-        }
-        return NO;
-    }
-    NSArray *ops = (NSArray *)parsed;
+    NSArray *ops = OpenCVParseOps(opsJson, error);
+    if (ops == nil) return NO;
 
     Mat current = cv::imread(OpenCVPath(inputPath), cv::IMREAD_COLOR);
     if (current.empty()) {
@@ -110,38 +238,7 @@ static std::string OpenCVPath(NSString *path) {
         return NO;
     }
 
-    for (NSUInteger i = 0; i < ops.count; i++) {
-        id rawOp = ops[i];
-        if (![rawOp isKindOfClass:[NSDictionary class]]) {
-            if (error) {
-                *error = OpenCVMakeError([NSString stringWithFormat:@"Pipeline op #%lu is not an object", (unsigned long)i]);
-            }
-            return NO;
-        }
-        NSDictionary *op = (NSDictionary *)rawOp;
-        NSString *type = op[@"type"];
-        if (![type isKindOfClass:[NSString class]]) {
-            if (error) {
-                *error = OpenCVMakeError([NSString stringWithFormat:@"Pipeline op #%lu missing 'type'", (unsigned long)i]);
-            }
-            return NO;
-        }
-        OpenCVOpHandler handler = [self handlerForName:type];
-        if (handler == nil) {
-            if (error) {
-                *error = OpenCVMakeCodedError(OpenCVErrorUnknownOp,
-                    [NSString stringWithFormat:@"Unknown pipeline op type '%@'", type]);
-            }
-            return NO;
-        }
-        NSError *opError = nil;
-        Mat next = handler(current, op, &opError);
-        if (opError != nil) {
-            if (error) *error = opError;
-            return NO;
-        }
-        current = next;
-    }
+    if (!OpenCVApplyOps(ops, current, error)) return NO;
 
     if (!cv::imwrite(OpenCVPath(outputPath), current)) {
         if (error) {
@@ -151,6 +248,26 @@ static std::string OpenCVPath(NSString *path) {
         return NO;
     }
     return YES;
+}
+
++ (NSString *)runPipelineWithInputJson:(NSString *)inputJson
+                            outputJson:(NSString *)outputJson
+                               opsJson:(NSString *)opsJson
+                                 error:(NSError **)error {
+    NSArray *ops = OpenCVParseOps(opsJson, error);
+    if (ops == nil) return nil;
+
+    NSDictionary *input = OpenCVParseObject(inputJson, error);
+    if (input == nil) return nil;
+    NSDictionary *output = OpenCVParseObject(outputJson, error);
+    if (output == nil) return nil;
+
+    Mat current = OpenCVDecodeInput(input, error);
+    if (current.empty()) return nil;
+
+    if (!OpenCVApplyOps(ops, current, error)) return nil;
+
+    return OpenCVEncodeOutput(output, current, error);
 }
 
 + (BOOL)runSingleOpWithInput:(NSString *)inputPath
