@@ -5,7 +5,6 @@
 #import <vector>
 
 using cv::Mat;
-using cv::Point;
 using cv::Point2f;
 
 // A detected quad must cover at least this fraction of the frame to be treated
@@ -23,11 +22,11 @@ static const double kScanEpsSweep[] = {0.02, 0.03, 0.04, 0.05, 0.06, 0.08};
 // Order four corners as top-left, top-right, bottom-right, bottom-left using the
 // classic sum/diff heuristic: tl has the smallest x+y, br the largest; tr has
 // the smallest (y-x), bl the largest.
-static void OpenCVOrderCorners(const std::vector<Point> &in, Point2f out[4]) {
+static void OpenCVOrderCorners(const std::vector<cv::Point> &in, Point2f out[4]) {
     double minSum = INFINITY, maxSum = -INFINITY;
     double minDiff = INFINITY, maxDiff = -INFINITY;
     Point2f tl, tr, br, bl;
-    for (const Point &p : in) {
+    for (const cv::Point &p : in) {
         double sum = (double)p.x + (double)p.y;
         double diff = (double)p.y - (double)p.x;
         if (sum < minSum) { minSum = sum; tl = Point2f((float)p.x, (float)p.y); }
@@ -63,7 +62,7 @@ static double OpenCVMedianIntensity(const Mat &gray) {
 // Find the largest convex 4-point contour that covers at least
 // `kScanMinAreaRatio` of the image. Returns true and fills `quad` (in the
 // coordinate space of `image`) on success.
-static BOOL OpenCVFindDocumentQuad(const Mat &image, std::vector<Point> &quad) {
+static BOOL OpenCVFindDocumentQuad(const Mat &image, std::vector<cv::Point> &quad) {
     Mat gray = OpenCVEnsureGray(image);
 
     double longSide = (double)std::max(image.cols, image.rows);
@@ -88,10 +87,10 @@ static BOOL OpenCVFindDocumentQuad(const Mat &image, std::vector<Point> &quad) {
     Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
     cv::morphologyEx(edges, edges, cv::MORPH_CLOSE, kernel);
 
-    std::vector<std::vector<Point>> contours;
+    std::vector<std::vector<cv::Point>> contours;
     cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     std::sort(contours.begin(), contours.end(),
-              [](const std::vector<Point> &a, const std::vector<Point> &b) {
+              [](const std::vector<cv::Point> &a, const std::vector<cv::Point> &b) {
                   return cv::contourArea(a) > cv::contourArea(b);
               });
 
@@ -101,13 +100,13 @@ static BOOL OpenCVFindDocumentQuad(const Mat &image, std::vector<Point> &quad) {
     for (size_t i = 0; i < limit; i++) {
         double peri = cv::arcLength(contours[i], true);
         for (size_t e = 0; e < epsCount; e++) {
-            std::vector<Point> approx;
+            std::vector<cv::Point> approx;
             cv::approxPolyDP(contours[i], approx, kScanEpsSweep[e] * peri, true);
             if (approx.size() == 4 && cv::isContourConvex(approx) &&
                 cv::contourArea(approx) >= minArea) {
                 if (scale != 1.0) {
                     double inv = 1.0 / scale;
-                    for (Point &p : approx) {
+                    for (cv::Point &p : approx) {
                         p.x = (int)std::lround(p.x * inv);
                         p.y = (int)std::lround(p.y * inv);
                     }
@@ -122,7 +121,7 @@ static BOOL OpenCVFindDocumentQuad(const Mat &image, std::vector<Point> &quad) {
 
 OPENCV_REGISTER_OP(scanDocument, @"scanDocument",
                    ^Mat(const Mat &current, NSDictionary *params, NSError **error) {
-    std::vector<Point> quad;
+    std::vector<cv::Point> quad;
     if (!OpenCVFindDocumentQuad(current, quad)) {
         if (error) {
             *error = OpenCVMakeCodedError(OpenCVErrorDocumentNotFound,
@@ -189,7 +188,7 @@ OPENCV_REGISTER_OP(scanDocument, @"scanDocument",
 // A missing document is not an error here — it returns `found: false`.
 OPENCV_REGISTER_DATA_OP(detectDocument, @"detectDocument",
                         ^NSDictionary *(const Mat &current, NSDictionary *params, NSError **error) {
-    std::vector<Point> quad;
+    std::vector<cv::Point> quad;
     BOOL found = OpenCVFindDocumentQuad(current, quad);
 
     NSMutableArray<NSDictionary *> *corners = [NSMutableArray array];

@@ -123,19 +123,10 @@ BOOL OpenCVOddPositive(int k);
 //   });
 //
 // `IDENT` is any unique C identifier; `NAME` is the op key matching the JS
-// --- Self-registration macro -------------------------------------------------
-//
-// Usage (in an op's .mm file):
-//
-//   OPENCV_REGISTER_OP(gray, @"gray", ^cv::Mat(const cv::Mat &current,
-//                                               NSDictionary *params,
-//                                               NSError **error) {
-//     return OpenCVEnsureGray(current);
-//   });
-//
-// `IDENT` is any unique C identifier; `NAME` is the op key matching the JS
-// `type`; `BLOCK` is an OpenCVOpHandler. The op registers in `+load` at image
-// load time.
+// `type`; the handler is an OpenCVOpHandler. The op registers in `+load` at
+// image load time. The handler is taken as a variadic argument so its internal
+// commas (e.g. in a `Point2f dst[4] = {...}` initializer) are not mistaken for
+// macro argument separators.
 //
 // The registration is emitted as an Objective-C class (rather than a plain
 // `__attribute__((constructor))` function) so that, when the pod is linked as
@@ -143,12 +134,12 @@ BOOL OpenCVOddPositive(int k);
 // Without this the linker would drop these otherwise-unreferenced translation
 // units and no ops would register. The podspec adds `-ObjC` to consuming app
 // targets for exactly this reason.
-#define OPENCV_REGISTER_OP(IDENT, NAME, BLOCK)                                  \
+#define OPENCV_REGISTER_OP(IDENT, NAME, ...)                                    \
   @interface _OpenCVOpRegistrar_##IDENT : NSObject                             \
   @end                                                                          \
   @implementation _OpenCVOpRegistrar_##IDENT                                   \
   + (void)load {                                                                \
-    [OpenCVOpRegistry registerOp:(NAME) handler:(BLOCK)];                       \
+    [OpenCVOpRegistry registerOp:(NAME) handler:(__VA_ARGS__)];                 \
   }                                                                             \
   @end
 
