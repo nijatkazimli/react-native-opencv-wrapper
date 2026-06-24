@@ -137,6 +137,13 @@ URIs), and every async call resolves with the output path.
 | Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
 | Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                     |
 
+Analysis ops return structured data instead of an image and end the chain (no
+`output()`/`run()`):
+
+| Analysis op | Method       | Returns                                                                       |
+| ----------- | ------------ | ----------------------------------------------------------------------------- |
+| Decode QR   | `decodeQR()` | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops) |
+
 ### Standalone
 
 ```ts
@@ -243,6 +250,62 @@ const jpgBase64 = await pipeline()
 `input()`/`inputBase64()` and `output()`/`outputBase64()` are interchangeable —
 mix and match either source with either sink.
 
+### Structured results (analysis ops)
+
+Some operations return **data** rather than an image. These are _terminal_
+analysis steps: they run any queued transform steps and then resolve with a
+typed result, so only an input source is required (no `output()`/`run()`).
+
+`decodeQR()` detects and decodes every QR code in the image:
+
+```ts
+import {
+  pipeline,
+  type DecodeQRResult,
+} from "@nijatk/react-native-opencv-wrapper";
+
+const result: DecodeQRResult = await pipeline()
+  .input("/abs/path/photo.jpg")
+  .decodeQR();
+
+if (result.found) {
+  for (const code of result.codes) {
+    console.log(code.value); // decoded text payload
+    console.log(code.corners); // [{ x, y }, ...] four corner points
+  }
+}
+```
+
+Transform steps may run before the analysis step (e.g. to crop or grayscale
+first); they share the same single-pass engine, and the source can be a file or
+base64:
+
+```ts
+const { found, codes } = await pipeline()
+  .inputBase64(pickedImage.base64)
+  .crop(0, 0, 512, 512)
+  .gray()
+  .decodeQR();
+```
+
+The result shape is:
+
+```ts
+interface DecodeQRResult {
+  found: boolean; // true when at least one QR code was detected
+  codes: {
+    value: string; // decoded text ("" if located but not decodable)
+    corners: { x: number; y: number }[]; // four corner points
+  }[];
+}
+```
+
+> **Requires OpenCV ≥ 4.3.0.** `decodeQR` uses
+> `QRCodeDetector::detectAndDecodeMulti`, added in 4.3. The bundled OpenCV is
+> always new enough; if you provide your own (see
+> [OpenCV integration](#opencv-integration)) and it is older, the call
+> rejects with the `opencv_unavailable` code.
+
 ### Dynamic single ops
 
 `standaloneOps` exposes every registered op by name (fully typed), and
@@ -264,13 +327,13 @@ await runStandaloneOp("threshold", input, output, 127, 255, "toZero");
 Every async call rejects with a stable `code` you can branch on, plus a
 human-readable message:
 
-| Code                      | Meaning                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| `opencv_invalid_argument` | Missing/invalid parameter, out-of-range value, or unknown enum |
-| `opencv_io_error`         | Could not read the input or write the output image             |
-| `opencv_unknown_op`       | A pipeline referenced an op `type` with no registered handler  |
-| `opencv_unavailable`      | OpenCV native library failed to initialize (Android)           |
-| `opencv_error`            | Unexpected / uncategorized native error                        |
+| Code                      | Meaning                                                                                                                                                           |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `opencv_invalid_argument` | Missing/invalid parameter, out-of-range value, or unknown enum                                                                                                    |
+| `opencv_io_error`         | Could not read the input or write the output image                                                                                                                |
+| `opencv_unknown_op`       | A pipeline referenced an op `type` with no registered handler                                                                                                     |
+| `opencv_unavailable`      | OpenCV is missing a required capability: the native library failed to initialize, or a host-provided OpenCV is too old for the op (e.g. `decodeQR` needs ≥ 4.3.0) |
+| `opencv_error`            | Unexpected / uncategorized native error                                                                                                                           |
 
 ```ts
 try {
@@ -311,9 +374,10 @@ base64 sources and sinks. Known gaps and planned improvements:
 - **Fixed op set.** Only the operations listed above are exposed. Custom kernels,
   arbitrary OpenCV calls, and color-space conversions beyond grayscale are not
   available without adding a new op (see [CONTRIBUTING.md](CONTRIBUTING.md)).
-- **No structured results.** Ops return the output path only; data-producing
-  algorithms (contours, histograms, feature points, face/QR detection) have no
-  way to return values yet.
+- **Few analysis ops.** Structured results are supported (see
+  [Structured results](#structured-results-analysis-ops)), but `decodeQR` is the
+  only analysis op so far; detectors like contours, histograms, feature points,
+  and face detection are not exposed yet.
 - **Limited parameter surface.** Things like border types, anchor points,
   kernel shapes (only square), and per-channel control are not exposed.
 - **No cancellation or progress.** Long pipelines run to completion; there is no
@@ -321,7 +385,8 @@ base64 sources and sinks. Known gaps and planned improvements:
 
 **Planned / nice-to-have**
 
-- Returning structured data from analysis ops (e.g. detected rectangles).
+- More analysis ops returning structured data (contours, histograms, feature
+  points, face detection).
 - More operations: color conversions, morphology shapes, warp/perspective,
   adaptive threshold, bitwise ops.
 - Optional output encoding controls (JPG quality, PNG compression).

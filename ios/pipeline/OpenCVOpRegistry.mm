@@ -222,6 +222,28 @@ static BOOL OpenCVApplyOps(NSArray *ops, Mat &current, NSError **error) {
     }
 }
 
++ (NSMutableDictionary<NSString *, OpenCVDataHandler> *)dataRegistry {
+    static NSMutableDictionary<NSString *, OpenCVDataHandler> *registry;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        registry = [NSMutableDictionary dictionary];
+    });
+    return registry;
+}
+
++ (void)registerDataOp:(NSString *)name handler:(OpenCVDataHandler)handler {
+    if (name.length == 0 || handler == nil) return;
+    @synchronized ([self dataRegistry]) {
+        [self dataRegistry][name] = [handler copy];
+    }
+}
+
++ (OpenCVDataHandler)dataHandlerForName:(NSString *)name {
+    @synchronized ([self dataRegistry]) {
+        return [self dataRegistry][name];
+    }
+}
+
 + (BOOL)runPipelineWithInput:(NSString *)inputPath
                       output:(NSString *)outputPath
                      opsJson:(NSString *)opsJson
@@ -268,6 +290,61 @@ static BOOL OpenCVApplyOps(NSArray *ops, Mat &current, NSError **error) {
     if (!OpenCVApplyOps(ops, current, error)) return nil;
 
     return OpenCVEncodeOutput(output, current, error);
+}
+
++ (NSString *)runPipelineDataWithInputJson:(NSString *)inputJson
+                                   opsJson:(NSString *)opsJson
+                                     error:(NSError **)error {
+    NSArray *ops = OpenCVParseOps(opsJson, error);
+    if (ops == nil) return nil;
+    if (ops.count == 0) {
+        if (error) *error = OpenCVMakeError(@"Pipeline has no analysis op");
+        return nil;
+    }
+
+    id rawDataOp = ops.lastObject;
+    if (![rawDataOp isKindOfClass:[NSDictionary class]]) {
+        if (error) *error = OpenCVMakeError(@"Analysis op is not an object");
+        return nil;
+    }
+    NSDictionary *dataOp = (NSDictionary *)rawDataOp;
+    NSString *type = dataOp[@"type"];
+    if (![type isKindOfClass:[NSString class]]) {
+        if (error) *error = OpenCVMakeError(@"Analysis op missing 'type'");
+        return nil;
+    }
+    OpenCVDataHandler handler = [self dataHandlerForName:type];
+    if (handler == nil) {
+        if (error) {
+            *error = OpenCVMakeCodedError(OpenCVErrorUnknownOp,
+                [NSString stringWithFormat:@"Unknown analysis op type '%@'", type]);
+        }
+        return nil;
+    }
+
+    NSDictionary *input = OpenCVParseObject(inputJson, error);
+    if (input == nil) return nil;
+
+    Mat current = OpenCVDecodeInput(input, error);
+    if (current.empty()) return nil;
+
+    NSArray *transforms = [ops subarrayWithRange:NSMakeRange(0, ops.count - 1)];
+    if (!OpenCVApplyOps(transforms, current, error)) return nil;
+
+    NSError *opError = nil;
+    NSDictionary *result = handler(current, dataOp, &opError);
+    if (result == nil) {
+        if (error) *error = opError ?: OpenCVMakeError(@"Analysis op produced no result");
+        return nil;
+    }
+
+    NSError *jsonError = nil;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:result options:0 error:&jsonError];
+    if (data == nil) {
+        if (error) *error = jsonError ?: OpenCVMakeError(@"Could not encode analysis result");
+        return nil;
+    }
+    return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
 }
 
 + (BOOL)runSingleOpWithInput:(NSString *)inputPath

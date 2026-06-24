@@ -444,4 +444,108 @@ static const int kHeight = 60;
   XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorUnknownOp);
 }
 
+#pragma mark - Data-returning analysis ops (runPipelineDataWithInputJson)
+
+// Encode a real QR code carrying `text` and return it as a base64 PNG. The
+// module is upscaled so detection is robust.
+- (NSString *)qrBase64:(NSString *)text {
+  cv::Ptr<cv::QRCodeEncoder> encoder = cv::QRCodeEncoder::create();
+  cv::Mat qr;
+  encoder->encode(std::string(text.UTF8String), qr);
+  XCTAssertFalse(qr.empty(), @"failed to encode QR code");
+  cv::Mat scaled;
+  cv::resize(qr, scaled, cv::Size(), 8, 8, cv::INTER_NEAREST);
+  std::vector<uchar> buf;
+  bool ok = cv::imencode(".png", scaled, buf);
+  XCTAssertTrue(ok, @"failed to encode QR image");
+  NSData *data = [NSData dataWithBytes:buf.data() length:buf.size()];
+  return [data base64EncodedStringWithOptions:0];
+}
+
+// Parse a JSON analysis result string into an NSDictionary.
+- (NSDictionary *)parseDataResult:(NSString *)json {
+  XCTAssertNotNil(json, @"analysis result was nil");
+  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+  NSError *error = nil;
+  id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+  XCTAssertNil(error, @"could not parse analysis JSON: %@", error);
+  XCTAssertTrue([parsed isKindOfClass:[NSDictionary class]], @"analysis result is not an object");
+  return (NSDictionary *)parsed;
+}
+
+- (void)testDecodeQRDecodesEncodedValue {
+  NSString *text = @"https://opencv.org";
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self qrBase64:text]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"decodeQR\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"decodeQR failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  NSArray *codes = parsed[@"codes"];
+  XCTAssertEqual(codes.count, 1u);
+  XCTAssertEqualObjects(codes[0][@"value"], text);
+  XCTAssertEqual([codes[0][@"corners"] count], 4u);
+}
+
+- (void)testDecodeQRRunsTransformsBeforeAnalysis {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self qrBase64:@"GRAYTEST"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"gray\"},{\"type\":\"decodeQR\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"decodeQR failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertEqualObjects(parsed[@"codes"][0][@"value"], @"GRAYTEST");
+}
+
+- (void)testDecodeQRReturnsNotFoundOnBlankImage {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"decodeQR\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"decodeQR failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @NO);
+  XCTAssertEqual([parsed[@"codes"] count], 0u);
+}
+
+- (void)testDataPipelineWithNoOpsFailsWithInvalidArgument {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[]"
+                                                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testUnknownAnalysisOpFailsWithStableCode {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"notAnAnalysis\"}]"
+                                                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorUnknownOp);
+}
+
 @end

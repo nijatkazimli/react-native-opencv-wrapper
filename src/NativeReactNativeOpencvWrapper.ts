@@ -68,6 +68,20 @@ export interface Spec extends TurboModule {
     outputJson: string,
     opsJson: string,
   ): Promise<string>;
+
+  /**
+   * Run a sequence of transform ops followed by a single trailing analysis op
+   * that returns structured data instead of an image, so no output sink is
+   * required.
+   *
+   * `inputJson` is the same source descriptor accepted by {@link runPipelineIO}.
+   * `opsJson` is a JSON-encoded op array whose final element is an analysis op
+   * (e.g. `{"type":"decodeQR"}`); any preceding ops are applied as transforms.
+   *
+   * Resolves with the analysis result encoded as a JSON string for the JS layer
+   * to parse into a typed object.
+   */
+  runPipelineData(inputJson: string, opsJson: string): Promise<string>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>(

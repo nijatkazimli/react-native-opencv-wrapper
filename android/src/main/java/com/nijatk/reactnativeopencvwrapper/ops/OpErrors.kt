@@ -15,6 +15,12 @@ class OpenCVIOException(message: String) : RuntimeException(message)
 /** A pipeline referenced an op `type` with no registered handler. */
 class OpenCVUnknownOpException(message: String) : RuntimeException(message)
 
+/**
+ * The op needs an OpenCV capability the linked library does not provide
+ * (e.g. a host-supplied OpenCV older than the version required by the op).
+ */
+class OpenCVUnavailableException(message: String) : RuntimeException(message)
+
 /** Throw an invalid-argument failure with `message`. */
 internal fun invalidArg(message: String): Nothing =
   throw OpenCVInvalidArgumentException(message)

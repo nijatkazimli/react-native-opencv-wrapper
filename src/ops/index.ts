@@ -14,3 +14,4 @@ export * from "./threshold";
 export * from "./medianBlur";
 export * from "./dilate";
 export * from "./erode";
+export * from "./decodeQR";

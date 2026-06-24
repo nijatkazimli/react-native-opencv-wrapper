@@ -18,7 +18,11 @@ import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.MatOfByte
 import org.opencv.core.Scalar
+import org.opencv.core.Size
 import org.opencv.imgcodecs.Imgcodecs
+import org.opencv.imgproc.Imgproc
+import org.opencv.objdetect.QRCodeEncoder
+import org.json.JSONObject
 import java.io.File
 
 /**
@@ -414,6 +418,82 @@ class OpRegistryInstrumentedTest {
       """{"kind":"base64","value":"${sourceBase64()}"}""",
       """{"kind":"base64","ext":".png"}""",
       """[{"type":"notAnOp"}]""",
+    )
+  }
+
+  // --- Data-returning analysis ops (executeData) ----------------------------
+
+  /** Encode a real QR code carrying [text] as an upscaled base64 PNG. */
+  private fun qrBase64(text: String): String {
+    val encoder = QRCodeEncoder.create()
+    val qr = Mat()
+    encoder.encode(text, qr)
+    assertTrue("failed to encode QR code", !qr.empty())
+    val scaled = Mat()
+    Imgproc.resize(qr, scaled, Size(), 8.0, 8.0, Imgproc.INTER_NEAREST)
+    val buffer = MatOfByte()
+    assertTrue("failed to encode QR image", Imgcodecs.imencode(".png", scaled, buffer))
+    val bytes = buffer.toArray()
+    buffer.release()
+    scaled.release()
+    qr.release()
+    return Base64.encodeToString(bytes, Base64.NO_WRAP)
+  }
+
+  @Test
+  fun decodeQRDecodesEncodedValue() {
+    val text = "https://opencv.org"
+    val result = OpRegistry.executeData(
+      """{"kind":"base64","value":"${qrBase64(text)}"}""",
+      """[{"type":"decodeQR"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue("expected QR to be found", parsed.getBoolean("found"))
+    val codes = parsed.getJSONArray("codes")
+    assertEquals(1, codes.length())
+    val code = codes.getJSONObject(0)
+    assertEquals(text, code.getString("value"))
+    assertEquals(4, code.getJSONArray("corners").length())
+  }
+
+  @Test
+  fun decodeQRRunsTransformsBeforeAnalysis() {
+    val result = OpRegistry.executeData(
+      """{"kind":"base64","value":"${qrBase64("GRAYTEST")}"}""",
+      """[{"type":"gray"},{"type":"decodeQR"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue("expected QR to be found", parsed.getBoolean("found"))
+    assertEquals("GRAYTEST", parsed.getJSONArray("codes").getJSONObject(0).getString("value"))
+  }
+
+  @Test
+  fun decodeQRReturnsNotFoundOnBlankImage() {
+    val result = OpRegistry.executeData(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """[{"type":"decodeQR"}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals(false, parsed.getBoolean("found"))
+    assertEquals(0, parsed.getJSONArray("codes").length())
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun dataPipelineWithNoOpsThrows() {
+    OpRegistry.executeData(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """[]""",
+    )
+  }
+
+  @Test(expected = OpenCVUnknownOpException::class)
+  fun unknownAnalysisOpThrows() {
+    OpRegistry.executeData(
+      """{"kind":"base64","value":"${sourceBase64()}"}""",
+      """[{"type":"notAnAnalysis"}]""",
     )
   }
 }
