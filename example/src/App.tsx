@@ -57,6 +57,20 @@ const DEMOS: readonly Demo[] = [
   { label: "Median", configure: (p) => p.medianBlur(5) },
   { label: "Dilate", configure: (p) => p.gray().dilate(3) },
   { label: "Erode", configure: (p) => p.gray().erode(3) },
+  { label: "Cvt HSV", configure: (p) => p.cvtColor("BGR2HSV") },
+  {
+    label: "In-Range",
+    configure: (p) => p.inRange([0, 0, 0], [110, 110, 110]),
+  },
+  {
+    label: "Sharpen",
+    configure: (p) =>
+      p.filter2D([
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0],
+      ]),
+  },
   {
     label: "Pipeline",
     configure: (p) =>
@@ -73,6 +87,7 @@ type Result = {
   uri: string;
   note: string;
   compareUri?: string;
+  captions?: { left: string; right: string };
   overlay?: DetectOverlay;
 };
 
@@ -125,6 +140,36 @@ export default function App() {
       ]);
     } catch (e) {
       setError(`Base64: ${(e as Error).message}`);
+    }
+  }, []);
+
+  const runDebugDemo = useCallback(async () => {
+    try {
+      const ts = Date.now();
+      const debugPath = `${DIR}/debug-gray-${ts}.png`;
+      const outputPath = `${DIR}/debug-out-${ts}.png`;
+      // `debug()` taps the chain after `gray()`, writing the intermediate to a
+      // file, then continues to `canny()` which produces the final output.
+      const path = await pipeline()
+        .input(INPUT_PATH)
+        .output(outputPath)
+        .gray()
+        .debug(debugPath)
+        .canny(50, 150)
+        .run();
+      setResults((r) => [
+        {
+          id: path,
+          label: "debug() tap",
+          uri: `file://${path}`,
+          compareUri: `file://${debugPath}`,
+          captions: { left: "debug: after gray", right: "final: canny" },
+          note: `intermediate captured at ${debugPath}`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`debug(): ${(e as Error).message}`);
     }
   }, []);
 
@@ -240,6 +285,7 @@ export default function App() {
           />
         ))}
         <Button label="Base64 I/O" onPress={runBase64Demo} />
+        <Button label="debug() tap" onPress={runDebugDemo} />
         <Button label="Decode QR" onPress={runDecodeQRDemo} />
         <Button label="Scan Document" onPress={runScanDocumentDemo} />
         <Button label="Scan B&W" onPress={runScanBwDemo} />
@@ -253,11 +299,15 @@ export default function App() {
           {r.compareUri ? (
             <View style={styles.compareRow}>
               <View style={styles.compareCell}>
-                <Text style={styles.caption}>Original</Text>
+                <Text style={styles.caption}>
+                  {r.captions?.left ?? "Original"}
+                </Text>
                 <Image source={{ uri: r.compareUri }} style={styles.image} />
               </View>
               <View style={styles.compareCell}>
-                <Text style={styles.caption}>Scanned</Text>
+                <Text style={styles.caption}>
+                  {r.captions?.right ?? "Scanned"}
+                </Text>
                 <Image source={{ uri: r.uri }} style={styles.image} />
               </View>
             </View>

@@ -284,6 +284,146 @@ class OpRegistryInstrumentedTest {
     result.release()
   }
 
+  @Test
+  fun cvtColorBgrToHsvPreservesChannels() {
+    val input = writeSourceImage("cvtcolor-in.png")
+    val output = outputPath("cvtcolor-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"cvtColor","code":"BGR2HSV"}]""")
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun cvtColorBgrToGrayProducesSingleChannel() {
+    val input = writeSourceImage("cvtcolor-gray-in.png")
+    val output = outputPath("cvtcolor-gray-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"cvtColor","code":"BGR2GRAY"}]""")
+
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun cvtColorInvalidCodeThrows() {
+    val input = writeSourceImage("cvtcolor-bad-in.png")
+    val output = outputPath("cvtcolor-bad-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"cvtColor","code":"BGR2XYZZY"}]""")
+  }
+
+  @Test
+  fun inRangeProducesBinaryMask() {
+    val input = writeSourceImage("inrange-in.png")
+    val output = outputPath("inrange-out.png")
+
+    // Source pixel is (B=10, G=20, R=30); the bounds include it, so the whole
+    // mask is 255.
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"inRange","lower":[5,15,25],"upper":[15,25,35]}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    assertEquals(255.0, result.get(0, 0)[0], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun inRangeOutOfBoundsProducesZeroMask() {
+    val input = writeSourceImage("inrange-zero-in.png")
+    val output = outputPath("inrange-zero-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"inRange","lower":[100,100,100],"upper":[200,200,200]}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(0.0, result.get(0, 0)[0], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun inRangeMismatchedBoundsThrow() {
+    val input = writeSourceImage("inrange-bad-in.png")
+    val output = outputPath("inrange-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"inRange","lower":[0,0],"upper":[255,255,255]}]""",
+    )
+  }
+
+  @Test
+  fun filter2DIdentityKernelPreservesImage() {
+    val input = writeSourceImage("filter2d-in.png")
+    val output = outputPath("filter2d-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"filter2D","kernel":[[1]]}]""")
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(0, 0)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun filter2DRaggedKernelThrows() {
+    val input = writeSourceImage("filter2d-bad-in.png")
+    val output = outputPath("filter2d-bad-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"filter2D","kernel":[[1,2],[3]]}]""")
+  }
+
+  @Test
+  fun debugWritesIntermediateAndPassesThrough() {
+    val input = writeSourceImage("debug-in.png")
+    val output = outputPath("debug-out.png")
+    val capture = outputPath("debug-capture.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"gray"},{"type":"debug","path":"$capture"},{"type":"canny","threshold1":50,"threshold2":150}]""",
+    )
+
+    // The capture is the grayscale intermediate (single channel).
+    val captured = readResult(capture)
+    assertEquals(1, captured.channels())
+    captured.release()
+
+    // The pipeline continued past debug to produce the canny edge map.
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun debugWithoutPathThrows() {
+    val input = writeSourceImage("debug-bad-in.png")
+    val output = outputPath("debug-bad-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"debug"}]""")
+  }
+
   // --- In-memory / base64 I/O (executeIO) ------------------------------------
 
   /** Encode the synthetic source image to a base64 string for `executeIO`. */

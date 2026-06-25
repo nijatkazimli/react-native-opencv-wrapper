@@ -229,6 +229,14 @@ describe("Pipeline builder", () => {
       .flip("both")
       .dilate(3, 2)
       .erode(5, 3)
+      .cvtColor("BGR2HSV")
+      .inRange([35, 60, 60], [85, 255, 255])
+      .filter2D([
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0],
+      ])
+      .debug("/tmp/dbg.png")
       .scanDocument()
       .run();
 
@@ -249,6 +257,17 @@ describe("Pipeline builder", () => {
       { type: "flip", direction: "both" },
       { type: "dilate", kernelSize: 3, iterations: 2 },
       { type: "erode", kernelSize: 5, iterations: 3 },
+      { type: "cvtColor", code: "BGR2HSV" },
+      { type: "inRange", lower: [35, 60, 60], upper: [85, 255, 255] },
+      {
+        type: "filter2D",
+        kernel: [
+          [0, -1, 0],
+          [-1, 5, -1],
+          [0, -1, 0],
+        ],
+      },
+      { type: "debug", path: "/tmp/dbg.png" },
       { type: "scanDocument" },
     ]);
   });

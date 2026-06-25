@@ -14,6 +14,9 @@ import {
   dilate,
   erode,
   scanDocument,
+  cvtColor,
+  inRange,
+  filter2D,
   standaloneOps,
   runStandaloneOp,
 } from "../standalone";
@@ -162,6 +165,36 @@ describe("pipeline-backed standalone wrappers", () => {
   it("scanDocument forwards an aspect-ratio hint", async () => {
     await scanDocument("/in.png", "/out.png", { aspectRatio: 0.7 });
     expect(opsOf()).toEqual([{ type: "scanDocument", aspectRatio: 0.7 }]);
+  });
+
+  it("cvtColor serializes the conversion code", async () => {
+    await cvtColor("/in.png", "/out.png", "BGR2HSV");
+    expect(opsOf()).toEqual([{ type: "cvtColor", code: "BGR2HSV" }]);
+  });
+
+  it("inRange serializes the lower and upper bounds", async () => {
+    await inRange("/in.png", "/out.png", [0, 0, 0], [180, 255, 255]);
+    expect(opsOf()).toEqual([
+      { type: "inRange", lower: [0, 0, 0], upper: [180, 255, 255] },
+    ]);
+  });
+
+  it("filter2D serializes the kernel", async () => {
+    await filter2D("/in.png", "/out.png", [
+      [0, -1, 0],
+      [-1, 5, -1],
+      [0, -1, 0],
+    ]);
+    expect(opsOf()).toEqual([
+      {
+        type: "filter2D",
+        kernel: [
+          [0, -1, 0],
+          [-1, 5, -1],
+          [0, -1, 0],
+        ],
+      },
+    ]);
   });
 });
 

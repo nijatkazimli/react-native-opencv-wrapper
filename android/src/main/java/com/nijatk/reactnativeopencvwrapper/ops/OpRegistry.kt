@@ -27,6 +27,10 @@ object OpRegistry {
     MedianBlurOp,
     DilateOp,
     ErodeOp,
+    CvtColorOp,
+    InRangeOp,
+    Filter2DOp,
+    DebugOp,
     ScanDocumentOp,
   ).associateBy { it.name }
 

@@ -123,20 +123,24 @@ URIs), and every async call resolves with the output path.
 
 ### Operations
 
-| Operation     | Method / function                             | Parameters                                                                                                                                                    |
-| ------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                                                                             |
-| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                   |
-| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                                                                |
-| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                                                                             |
-| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`)                                                 |
-| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                                                                      |
-| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                                                                        |
-| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                                                                   |
-| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                                                                       |
-| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                     |
-| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                     |
-| Scan document | `scanDocument(options?)`                      | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop) |
+| Operation     | Method / function                             | Parameters                                                                                                                                                                                     |
+| ------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                                                                                                              |
+| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                                                    |
+| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                                                                                                 |
+| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                                                                                                              |
+| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`)                                                                                  |
+| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                                                                                                       |
+| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                                                                                                         |
+| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                                                                                                    |
+| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                                                                                                        |
+| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                      |
+| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                      |
+| Convert color | `cvtColor(code)`                              | `code`: `"BGR2GRAY"` \| `"GRAY2BGR"` \| `"BGR2RGB"` \| `"RGB2BGR"` \| `"BGR2HSV"` \| `"HSV2BGR"` \| `"BGR2HLS"` \| `"HLS2BGR"` \| `"BGR2Lab"` \| `"Lab2BGR"` \| `"BGR2YCrCb"` \| `"YCrCb2BGR"` |
+| In-range mask | `inRange(lower, upper)`                       | `lower`/`upper`: per-channel bounds (1–4 numbers, same length as the image's channel count); returns a single-channel binary mask                                                              |
+| Filter 2D     | `filter2D(kernel)`                            | `kernel`: a non-empty 2D number array (equal-length rows); arbitrary convolution that keeps the source depth/channels                                                                          |
+| Debug capture | `debug(path)`                                 | `path`: absolute file path; writes the current intermediate image (encoder from the extension) and passes it through unchanged                                                                 |
+| Scan document | `scanDocument(options?)`                      | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                  |
 
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
@@ -162,6 +166,9 @@ import {
   flip,
   dilate,
   erode,
+  cvtColor,
+  inRange,
+  filter2D,
 } from "@nijatk/react-native-opencv-wrapper";
 
 const input = "/abs/path/input.png";
@@ -180,6 +187,13 @@ await rotate(input, output, 90);
 await flip(input, output, "horizontal");
 await dilate(input, output, 3, 2);
 await erode(input, output, 3);
+await cvtColor(input, output, "BGR2HSV");
+await inRange(input, output, [35, 60, 60], [85, 255, 255]); // green mask
+await filter2D(input, output, [
+  [0, -1, 0],
+  [-1, 5, -1],
+  [0, -1, 0],
+]); // sharpen
 ```
 
 > `toGray(input, output)` is kept as an alias of `gray(input, output)`.
@@ -213,6 +227,27 @@ const base = pipeline().input("/abs/in.png").gray();
 await base.clone().output("/abs/edges.png").canny(50, 150).run();
 await base.clone().output("/abs/blurred.png").gaussianBlur(7).run();
 ```
+
+#### Inspecting intermediates with `debug()`
+
+`debug(path)` is a pass-through tap: it writes the current intermediate image
+to `path` and continues the chain unchanged, so you can inspect a multi-step
+pipeline without splitting it into separate runs.
+
+```ts
+await pipeline()
+  .input("/abs/in.png")
+  .output("/abs/out.png")
+  .gray()
+  .debug("/abs/debug/after-gray.png")
+  .canny(50, 150)
+  .debug("/abs/debug/after-canny.png")
+  .run();
+```
+
+The encoder is chosen from `path`'s extension (`.png`, `.jpg`, ...). It is a
+side effect only — the image handed to the next step is identical to the one
+before `debug`.
 
 ### Base64 / in-memory I/O
 
