@@ -16,6 +16,8 @@ import type {
   AdaptiveThresholdType,
 } from "./ops/adaptiveThreshold";
 import type { MorphOperation } from "./ops/morphologyEx";
+import type { Color } from "./ops/drawRect";
+import type { Point2D } from "./ops/drawPolygon";
 import "./ops";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
@@ -277,4 +279,134 @@ export function bitwiseNot(
   outputPath: string,
 ): Promise<string> {
   return runStandaloneOp("bitwiseNot", inputPath, outputPath);
+}
+
+/** Standalone wrapper for `drawRect`: draw a rectangle onto an image. */
+export function drawRect(
+  inputPath: string,
+  outputPath: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: Color = [255, 0, 0],
+  thickness: number = 2,
+  fillColor?: Color,
+  antialias: boolean = true,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawRect",
+    inputPath,
+    outputPath,
+    x,
+    y,
+    width,
+    height,
+    color,
+    thickness,
+    fillColor,
+    antialias,
+  );
+}
+
+/** Standalone wrapper for `drawCircle`: draw a circle onto an image. */
+export function drawCircle(
+  inputPath: string,
+  outputPath: string,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  color: Color = [255, 0, 0],
+  thickness: number = 2,
+  fillColor?: Color,
+  antialias: boolean = true,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawCircle",
+    inputPath,
+    outputPath,
+    centerX,
+    centerY,
+    radius,
+    color,
+    thickness,
+    fillColor,
+    antialias,
+  );
+}
+
+/** Standalone wrapper for `drawLine`: draw a line segment onto an image. */
+export function drawLine(
+  inputPath: string,
+  outputPath: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: Color = [255, 0, 0],
+  thickness: number = 2,
+  antialias: boolean = true,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawLine",
+    inputPath,
+    outputPath,
+    x1,
+    y1,
+    x2,
+    y2,
+    color,
+    thickness,
+    antialias,
+  );
+}
+
+/** Standalone wrapper for `putText`: draw a text label onto an image. */
+export function putText(
+  inputPath: string,
+  outputPath: string,
+  text: string,
+  x: number,
+  y: number,
+  fontScale: number = 1,
+  color: Color = [255, 0, 0],
+  thickness: number = 2,
+  antialias: boolean = true,
+): Promise<string> {
+  return runStandaloneOp(
+    "putText",
+    inputPath,
+    outputPath,
+    text,
+    x,
+    y,
+    fontScale,
+    color,
+    thickness,
+    antialias,
+  );
+}
+
+/** Standalone wrapper for `drawPolygon`: draw a polyline/polygon onto an image. */
+export function drawPolygon(
+  inputPath: string,
+  outputPath: string,
+  points: readonly Point2D[],
+  color: Color = [255, 0, 0],
+  thickness: number = 2,
+  closed: boolean = true,
+  fillColor?: Color,
+  antialias: boolean = true,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawPolygon",
+    inputPath,
+    outputPath,
+    points,
+    color,
+    thickness,
+    closed,
+    fillColor,
+    antialias,
+  );
 }

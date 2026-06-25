@@ -614,6 +614,284 @@ static const int kHeight = 60;
   XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
 }
 
+#pragma mark - Drawing / annotation ops
+
+- (void)testDrawRectStrokesBorderColor {
+  NSString *input = [self writeSourceImage:@"drawrect-in.png"];
+  NSString *output = [self outputPath:@"drawrect-out.png"];
+
+  // color [r,g,b] = [250,20,10] → BGR Scalar(10,20,250).
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawRect\",\"x\":5,\"y\":10,\"width\":30,\"height\":40,\"color\":[250,20,10],\"thickness\":4}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  // A pixel on the (axis-aligned) top edge carries the stroke color.
+  cv::Vec3b pixel = result.at<cv::Vec3b>(10, 20);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 250);
+}
+
+- (void)testDrawRectZeroSizeFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"drawrect-bad-in.png"];
+  NSString *output = [self outputPath:@"drawrect-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawRect\",\"x\":5,\"y\":5,\"width\":0,\"height\":10,\"color\":[255,0,0],\"thickness\":2}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testDrawCircleLeavesCenterHollow {
+  NSString *input = [self writeSourceImage:@"drawcircle-in.png"];
+  NSString *output = [self outputPath:@"drawcircle-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawCircle\",\"centerX\":20,\"centerY\":30,\"radius\":10,\"color\":[250,20,10],\"thickness\":2}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  // The outline is hollow, so the center keeps the source color (10,20,30).
+  cv::Vec3b center = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(center[0], 10);
+  XCTAssertEqual(center[1], 20);
+  XCTAssertEqual(center[2], 30);
+}
+
+- (void)testDrawCircleZeroRadiusFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"drawcircle-bad-in.png"];
+  NSString *output = [self outputPath:@"drawcircle-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawCircle\",\"centerX\":20,\"centerY\":30,\"radius\":0,\"color\":[255,0,0],\"thickness\":2}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testDrawLineStrokesColor {
+  NSString *input = [self writeSourceImage:@"drawline-in.png"];
+  NSString *output = [self outputPath:@"drawline-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawLine\",\"x1\":0,\"y1\":30,\"x2\":39,\"y2\":30,\"color\":[250,20,10],\"thickness\":4}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 250);
+}
+
+- (void)testDrawLineZeroThicknessFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"drawline-bad-in.png"];
+  NSString *output = [self outputPath:@"drawline-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawLine\",\"x1\":0,\"y1\":0,\"x2\":10,\"y2\":10,\"color\":[255,0,0],\"thickness\":0}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testPutTextPreservesDimensions {
+  NSString *input = [self writeSourceImage:@"puttext-in.png"];
+  NSString *output = [self outputPath:@"puttext-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"putText\",\"text\":\"Hi\",\"x\":2,\"y\":40,\"fontScale\":1,\"color\":[255,255,0],\"thickness\":2}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testPutTextEmptyTextFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"puttext-bad-in.png"];
+  NSString *output = [self outputPath:@"puttext-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"putText\",\"text\":\"\",\"x\":2,\"y\":40,\"fontScale\":1,\"color\":[255,0,0],\"thickness\":2}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testDrawPolygonStrokesEdgeColor {
+  NSString *input = [self writeSourceImage:@"drawpoly-in.png"];
+  NSString *output = [self outputPath:@"drawpoly-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawPolygon\",\"points\":[[5,5],[35,5],[35,55],[5,55]],\"color\":[250,20,10],\"thickness\":4}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  // The (axis-aligned) top edge between [5,5] and [35,5] carries the color.
+  cv::Vec3b pixel = result.at<cv::Vec3b>(5, 20);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 250);
+}
+
+- (void)testDrawPolygonTooFewPointsFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"drawpoly-bad-in.png"];
+  NSString *output = [self outputPath:@"drawpoly-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawPolygon\",\"points\":[[5,5]],\"color\":[255,0,0],\"thickness\":2}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testDrawRectFillColorFloodsInteriorAndStrokesBorder {
+  NSString *input = [self writeSourceImage:@"drawrect-fill-in.png"];
+  NSString *output = [self outputPath:@"drawrect-fill-out.png"];
+
+  // Distinct stroke vs fill: stroke [12,34,56] -> BGR(56,34,12),
+  // fillColor [250,20,10] -> BGR(10,20,250).
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawRect\",\"x\":5,\"y\":10,\"width\":30,\"height\":40,\"color\":[12,34,56],\"thickness\":2,\"fillColor\":[250,20,10]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  // The interior carries the fill color.
+  cv::Vec3b interior = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(interior[0], 10);
+  XCTAssertEqual(interior[1], 20);
+  XCTAssertEqual(interior[2], 250);
+  // The top edge still carries the (separate) stroke color.
+  cv::Vec3b border = result.at<cv::Vec3b>(10, 20);
+  XCTAssertEqual(border[0], 56);
+  XCTAssertEqual(border[1], 34);
+  XCTAssertEqual(border[2], 12);
+}
+
+- (void)testDrawCircleFillColorFloodsInterior {
+  NSString *input = [self writeSourceImage:@"drawcircle-fill-in.png"];
+  NSString *output = [self outputPath:@"drawcircle-fill-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawCircle\",\"centerX\":20,\"centerY\":30,\"radius\":10,\"color\":[12,34,56],\"thickness\":2,\"fillColor\":[250,20,10]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  // A filled disc paints its interior, so the center carries the fill color.
+  cv::Vec3b center = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(center[0], 10);
+  XCTAssertEqual(center[1], 20);
+  XCTAssertEqual(center[2], 250);
+}
+
+- (void)testDrawCircleAliasedEdgesSucceed {
+  NSString *input = [self writeSourceImage:@"drawcircle-alias-in.png"];
+  NSString *output = [self outputPath:@"drawcircle-alias-out.png"];
+
+  // antialias:false routes through LINE_8; result must still decode cleanly.
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawCircle\",\"centerX\":20,\"centerY\":30,\"radius\":10,\"color\":[250,20,10],\"thickness\":2,\"antialias\":false}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testDrawPolygonFillColorFloodsInteriorAndStrokesEdge {
+  NSString *input = [self writeSourceImage:@"drawpoly-fill-in.png"];
+  NSString *output = [self outputPath:@"drawpoly-fill-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawPolygon\",\"points\":[[5,5],[35,5],[35,55],[5,55]],\"color\":[12,34,56],\"thickness\":2,\"fillColor\":[250,20,10]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  // An inside pixel carries the fill color.
+  cv::Vec3b interior = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(interior[0], 10);
+  XCTAssertEqual(interior[1], 20);
+  XCTAssertEqual(interior[2], 250);
+  // The (axis-aligned) top edge still carries the stroke color.
+  cv::Vec3b border = result.at<cv::Vec3b>(5, 20);
+  XCTAssertEqual(border[0], 56);
+  XCTAssertEqual(border[1], 34);
+  XCTAssertEqual(border[2], 12);
+}
+
 #pragma mark - In-memory / base64 I/O (runPipelineWithInputJson)
 
 - (void)testBase64InputToPathOutput {

@@ -59,6 +59,21 @@ BOOL OpenCVOddPositive(int k) {
     return k >= 1 && k % 2 == 1;
 }
 
+cv::Scalar OpenCVColorScalar(NSArray *color, cv::Scalar fallback) {
+    if (![color isKindOfClass:[NSArray class]] || color.count < 3) return fallback;
+    double rgb[3];
+    for (NSUInteger i = 0; i < 3; i++) {
+        id component = color[i];
+        if (![component isKindOfClass:[NSNumber class]]) return fallback;
+        rgb[i] = [component doubleValue];
+    }
+    return cv::Scalar(rgb[2], rgb[1], rgb[0]);  // RGB -> BGR
+}
+
+BOOL OpenCVAntialias(NSDictionary *params) {
+    return params[@"antialias"] ? [params[@"antialias"] boolValue] : YES;
+}
+
 static std::string OpenCVPath(NSString *path) {
     return std::string([path UTF8String]);
 }

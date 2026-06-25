@@ -239,6 +239,15 @@ describe("Pipeline builder", () => {
       .adaptiveThreshold(255, 11, 2)
       .morphologyEx("open", 3)
       .bitwiseNot()
+      .drawRect(10, 20, 100, 50)
+      .drawCircle(30, 40, 15)
+      .drawLine(0, 0, 50, 50)
+      .putText("hi", 5, 25)
+      .drawPolygon([
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ])
       .applyMask((m) =>
         m.cvtColor("BGR2HSV").inRange([35, 60, 60], [85, 255, 255]),
       )
@@ -284,6 +293,57 @@ describe("Pipeline builder", () => {
       { type: "morphologyEx", operation: "open", kernelSize: 3, iterations: 1 },
       { type: "bitwiseNot" },
       {
+        type: "drawRect",
+        x: 10,
+        y: 20,
+        width: 100,
+        height: 50,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+      {
+        type: "drawCircle",
+        centerX: 30,
+        centerY: 40,
+        radius: 15,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+      {
+        type: "drawLine",
+        x1: 0,
+        y1: 0,
+        x2: 50,
+        y2: 50,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+      {
+        type: "putText",
+        text: "hi",
+        x: 5,
+        y: 25,
+        fontScale: 1,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+      {
+        type: "drawPolygon",
+        points: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+        ],
+        color: [255, 0, 0],
+        thickness: 2,
+        closed: true,
+        antialias: true,
+      },
+      {
         type: "applyMask",
         mask: [
           { type: "cvtColor", code: "BGR2HSV" },
@@ -320,6 +380,86 @@ describe("Pipeline builder", () => {
         iterations: 2,
       },
       { type: "applyMask", mask: [{ type: "gray" }] },
+    ]);
+  });
+
+  it("passes explicit annotation parameters through", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .drawRect(1, 2, 3, 4, [10, 20, 30], 5, [100, 110, 120], false)
+      .drawCircle(6, 7, 8, [11, 22, 33], 9, [44, 55, 66], false)
+      .drawLine(1, 2, 3, 4, [40, 50, 60], 7, false)
+      .putText("label", 5, 6, 2, [70, 80, 90], 4, false)
+      .drawPolygon(
+        [
+          [1, 1],
+          [2, 2],
+          [3, 3],
+        ],
+        [99, 88, 77],
+        6,
+        false,
+        [12, 13, 14],
+        false,
+      )
+      .run();
+
+    expect(ioCall().ops).toEqual([
+      {
+        type: "drawRect",
+        x: 1,
+        y: 2,
+        width: 3,
+        height: 4,
+        color: [10, 20, 30],
+        thickness: 5,
+        fillColor: [100, 110, 120],
+        antialias: false,
+      },
+      {
+        type: "drawCircle",
+        centerX: 6,
+        centerY: 7,
+        radius: 8,
+        color: [11, 22, 33],
+        thickness: 9,
+        fillColor: [44, 55, 66],
+        antialias: false,
+      },
+      {
+        type: "drawLine",
+        x1: 1,
+        y1: 2,
+        x2: 3,
+        y2: 4,
+        color: [40, 50, 60],
+        thickness: 7,
+        antialias: false,
+      },
+      {
+        type: "putText",
+        text: "label",
+        x: 5,
+        y: 6,
+        fontScale: 2,
+        color: [70, 80, 90],
+        thickness: 4,
+        antialias: false,
+      },
+      {
+        type: "drawPolygon",
+        points: [
+          [1, 1],
+          [2, 2],
+          [3, 3],
+        ],
+        color: [99, 88, 77],
+        thickness: 6,
+        closed: false,
+        fillColor: [12, 13, 14],
+        antialias: false,
+      },
     ]);
   });
 });
