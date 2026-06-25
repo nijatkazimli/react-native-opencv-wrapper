@@ -298,6 +298,176 @@ static const int kHeight = 60;
   XCTAssertEqual(result.rows, kHeight);
 }
 
+- (void)testCvtColorBgrToHsvPreservesChannels {
+  NSString *input = [self writeSourceImage:@"cvtcolor-in.png"];
+  NSString *output = [self outputPath:@"cvtcolor-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"cvtColor\",\"code\":\"BGR2HSV\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testCvtColorBgrToGrayProducesSingleChannel {
+  NSString *input = [self writeSourceImage:@"cvtcolor-gray-in.png"];
+  NSString *output = [self outputPath:@"cvtcolor-gray-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"cvtColor\",\"code\":\"BGR2GRAY\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+}
+
+- (void)testCvtColorInvalidCodeFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"cvtcolor-bad-in.png"];
+  NSString *output = [self outputPath:@"cvtcolor-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"cvtColor\",\"code\":\"BGR2XYZZY\"}]"
+                                             error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testInRangeProducesBinaryMask {
+  NSString *input = [self writeSourceImage:@"inrange-in.png"];
+  NSString *output = [self outputPath:@"inrange-out.png"];
+
+  // Source pixel is (B=10, G=20, R=30); the bounds include it, so the mask is 255.
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"inRange\",\"lower\":[5,15,25],\"upper\":[15,25,35]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  XCTAssertEqual(result.at<uchar>(0, 0), 255);
+}
+
+- (void)testInRangeOutOfBoundsProducesZeroMask {
+  NSString *input = [self writeSourceImage:@"inrange-zero-in.png"];
+  NSString *output = [self outputPath:@"inrange-zero-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"inRange\",\"lower\":[100,100,100],\"upper\":[200,200,200]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.at<uchar>(0, 0), 0);
+}
+
+- (void)testInRangeMismatchedBoundsFailWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"inrange-bad-in.png"];
+  NSString *output = [self outputPath:@"inrange-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"inRange\",\"lower\":[0,0],\"upper\":[255,255,255]}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testFilter2DIdentityKernelPreservesImage {
+  NSString *input = [self writeSourceImage:@"filter2d-in.png"];
+  NSString *output = [self outputPath:@"filter2d-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"filter2D\",\"kernel\":[[1]]}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testFilter2DRaggedKernelFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"filter2d-bad-in.png"];
+  NSString *output = [self outputPath:@"filter2d-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"filter2D\",\"kernel\":[[1,2],[3]]}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testDebugWritesIntermediateAndPassesThrough {
+  NSString *input = [self writeSourceImage:@"debug-in.png"];
+  NSString *output = [self outputPath:@"debug-out.png"];
+  NSString *capture = [self outputPath:@"debug-capture.png"];
+
+  NSString *opsJson = [NSString stringWithFormat:
+      @"[{\"type\":\"gray\"},{\"type\":\"debug\",\"path\":\"%@\"},{\"type\":\"canny\",\"threshold1\":50,\"threshold2\":150}]",
+      capture];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:opsJson
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  // The capture is the grayscale intermediate (single channel).
+  cv::Mat captured = [self readResult:capture];
+  XCTAssertEqual(captured.channels(), 1);
+
+  // The pipeline continued past debug to produce the canny edge map.
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testDebugWithoutPathFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"debug-bad-in.png"];
+  NSString *output = [self outputPath:@"debug-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"debug\"}]"
+                                             error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
 #pragma mark - In-memory / base64 I/O (runPipelineWithInputJson)
 
 - (void)testBase64InputToPathOutput {
