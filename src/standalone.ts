@@ -16,6 +16,11 @@ import type {
   AdaptiveThresholdType,
 } from "./ops/adaptiveThreshold";
 import type { MorphOperation } from "./ops/morphologyEx";
+import type { DrawRectOptions } from "./ops/drawRect";
+import type { DrawCircleOptions } from "./ops/drawCircle";
+import type { DrawLineOptions } from "./ops/drawLine";
+import type { PutTextOptions } from "./ops/putText";
+import type { Point2D, DrawPolygonOptions } from "./ops/drawPolygon";
 import "./ops";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
@@ -277,4 +282,90 @@ export function bitwiseNot(
   outputPath: string,
 ): Promise<string> {
   return runStandaloneOp("bitwiseNot", inputPath, outputPath);
+}
+
+/** Standalone wrapper for `drawRect`: draw a rectangle onto an image. */
+export function drawRect(
+  inputPath: string,
+  outputPath: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  options?: DrawRectOptions,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawRect",
+    inputPath,
+    outputPath,
+    x,
+    y,
+    width,
+    height,
+    options,
+  );
+}
+
+/** Standalone wrapper for `drawCircle`: draw a circle onto an image. */
+export function drawCircle(
+  inputPath: string,
+  outputPath: string,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  options?: DrawCircleOptions,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawCircle",
+    inputPath,
+    outputPath,
+    centerX,
+    centerY,
+    radius,
+    options,
+  );
+}
+
+/** Standalone wrapper for `drawLine`: draw a line segment onto an image. */
+export function drawLine(
+  inputPath: string,
+  outputPath: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  options?: DrawLineOptions,
+): Promise<string> {
+  return runStandaloneOp(
+    "drawLine",
+    inputPath,
+    outputPath,
+    x1,
+    y1,
+    x2,
+    y2,
+    options,
+  );
+}
+
+/** Standalone wrapper for `putText`: draw a text label onto an image. */
+export function putText(
+  inputPath: string,
+  outputPath: string,
+  text: string,
+  x: number,
+  y: number,
+  options?: PutTextOptions,
+): Promise<string> {
+  return runStandaloneOp("putText", inputPath, outputPath, text, x, y, options);
+}
+
+/** Standalone wrapper for `drawPolygon`: draw a polyline/polygon onto an image. */
+export function drawPolygon(
+  inputPath: string,
+  outputPath: string,
+  points: readonly Point2D[],
+  options?: DrawPolygonOptions,
+): Promise<string> {
+  return runStandaloneOp("drawPolygon", inputPath, outputPath, points, options);
 }

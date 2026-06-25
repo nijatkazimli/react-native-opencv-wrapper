@@ -112,6 +112,14 @@ cv::Mat OpenCVEnsureGray(const cv::Mat &src);
 /// True when `k` is a positive odd integer (valid kernel size).
 BOOL OpenCVOddPositive(int k);
 
+/// Convert a JS `[r, g, b]` color array (each 0–255) to a BGR `cv::Scalar` for
+/// drawing ops. Returns `fallback` when the value is missing or malformed.
+cv::Scalar OpenCVColorScalar(NSArray *color, cv::Scalar fallback);
+
+/// Whether a drawing op should anti-alias its edges. Reads the optional
+/// `antialias` param; defaults to `YES` when absent.
+BOOL OpenCVAntialias(NSDictionary *params);
+
 /// Apply every op in the JSON-decoded `ops` array to `current` in place, in
 /// order. Used by composite ops (e.g. `applyMask`) that run a sub-pipeline on a
 /// copy of the current image. Returns `NO` and sets `*error` on the first

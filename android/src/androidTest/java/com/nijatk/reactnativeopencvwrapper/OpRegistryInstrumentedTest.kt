@@ -554,6 +554,269 @@ class OpRegistryInstrumentedTest {
     OpRegistry.execute(input, output, """[{"type":"applyMask","mask":[]}]""")
   }
 
+  // --- Drawing / annotation ops ----------------------------------------------
+
+  @Test
+  fun drawRectStrokesBorderColor() {
+    val input = writeSourceImage("drawrect-in.png")
+    val output = outputPath("drawrect-out.png")
+
+    // color [r,g,b] = [250,20,10] -> BGR Scalar(10,20,250).
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawRect","x":5,"y":10,"width":30,"height":40,"color":[250,20,10],"thickness":4}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    // A pixel on the (axis-aligned) top edge carries the stroke color.
+    val pixel = result.get(10, 20)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(250.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun drawRectZeroSizeThrows() {
+    val input = writeSourceImage("drawrect-bad-in.png")
+    val output = outputPath("drawrect-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawRect","x":5,"y":5,"width":0,"height":10,"color":[255,0,0],"thickness":2}]""",
+    )
+  }
+
+  @Test
+  fun drawCircleLeavesCenterHollow() {
+    val input = writeSourceImage("drawcircle-in.png")
+    val output = outputPath("drawcircle-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawCircle","centerX":20,"centerY":30,"radius":10,"color":[250,20,10],"thickness":2}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    // The outline is hollow, so the center keeps the source color (10,20,30).
+    val center = result.get(30, 20)
+    assertEquals(10.0, center[0], 0.0)
+    assertEquals(20.0, center[1], 0.0)
+    assertEquals(30.0, center[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun drawCircleZeroRadiusThrows() {
+    val input = writeSourceImage("drawcircle-bad-in.png")
+    val output = outputPath("drawcircle-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawCircle","centerX":20,"centerY":30,"radius":0,"color":[255,0,0],"thickness":2}]""",
+    )
+  }
+
+  @Test
+  fun drawLineStrokesColor() {
+    val input = writeSourceImage("drawline-in.png")
+    val output = outputPath("drawline-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawLine","x1":0,"y1":30,"x2":39,"y2":30,"color":[250,20,10],"thickness":4}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(30, 20)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(250.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun drawLineZeroThicknessThrows() {
+    val input = writeSourceImage("drawline-bad-in.png")
+    val output = outputPath("drawline-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawLine","x1":0,"y1":0,"x2":10,"y2":10,"color":[255,0,0],"thickness":0}]""",
+    )
+  }
+
+  @Test
+  fun putTextPreservesDimensions() {
+    val input = writeSourceImage("puttext-in.png")
+    val output = outputPath("puttext-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"putText","text":"Hi","x":2,"y":40,"fontScale":1,"color":[255,255,0],"thickness":2}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun putTextEmptyTextThrows() {
+    val input = writeSourceImage("puttext-bad-in.png")
+    val output = outputPath("puttext-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"putText","text":"","x":2,"y":40,"fontScale":1,"color":[255,0,0],"thickness":2}]""",
+    )
+  }
+
+  @Test
+  fun drawPolygonStrokesEdgeColor() {
+    val input = writeSourceImage("drawpoly-in.png")
+    val output = outputPath("drawpoly-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawPolygon","points":[[5,5],[35,5],[35,55],[5,55]],"color":[250,20,10],"thickness":4}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    // The (axis-aligned) top edge between [5,5] and [35,5] carries the color.
+    val pixel = result.get(5, 20)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(250.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun drawPolygonTooFewPointsThrows() {
+    val input = writeSourceImage("drawpoly-bad-in.png")
+    val output = outputPath("drawpoly-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawPolygon","points":[[5,5]],"color":[255,0,0],"thickness":2}]""",
+    )
+  }
+
+  @Test
+  fun drawRectFillColorFloodsInteriorAndStrokesBorder() {
+    val input = writeSourceImage("drawrect-fill-in.png")
+    val output = outputPath("drawrect-fill-out.png")
+
+    // Distinct stroke vs fill: stroke [12,34,56] -> BGR(56,34,12),
+    // fillColor [250,20,10] -> BGR(10,20,250).
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawRect","x":5,"y":10,"width":30,"height":40,"color":[12,34,56],"thickness":2,"fillColor":[250,20,10]}]""",
+    )
+
+    val result = readResult(output)
+    // The interior carries the fill color.
+    val interior = result.get(30, 20)
+    assertEquals(10.0, interior[0], 0.0)
+    assertEquals(20.0, interior[1], 0.0)
+    assertEquals(250.0, interior[2], 0.0)
+    // The top edge still carries the (separate) stroke color.
+    val border = result.get(10, 20)
+    assertEquals(56.0, border[0], 0.0)
+    assertEquals(34.0, border[1], 0.0)
+    assertEquals(12.0, border[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun drawCircleFillColorFloodsInterior() {
+    val input = writeSourceImage("drawcircle-fill-in.png")
+    val output = outputPath("drawcircle-fill-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawCircle","centerX":20,"centerY":30,"radius":10,"color":[12,34,56],"thickness":2,"fillColor":[250,20,10]}]""",
+    )
+
+    val result = readResult(output)
+    // A filled disc paints its interior, so the center carries the fill color.
+    val center = result.get(30, 20)
+    assertEquals(10.0, center[0], 0.0)
+    assertEquals(20.0, center[1], 0.0)
+    assertEquals(250.0, center[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun drawCircleAliasedEdgesSucceed() {
+    val input = writeSourceImage("drawcircle-alias-in.png")
+    val output = outputPath("drawcircle-alias-out.png")
+
+    // antialias=false routes through LINE_8; result must still decode cleanly.
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawCircle","centerX":20,"centerY":30,"radius":10,"color":[250,20,10],"thickness":2,"antialias":false}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun drawPolygonFillColorFloodsInteriorAndStrokesEdge() {
+    val input = writeSourceImage("drawpoly-fill-in.png")
+    val output = outputPath("drawpoly-fill-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawPolygon","points":[[5,5],[35,5],[35,55],[5,55]],"color":[12,34,56],"thickness":2,"fillColor":[250,20,10]}]""",
+    )
+
+    val result = readResult(output)
+    // An inside pixel carries the fill color.
+    val interior = result.get(30, 20)
+    assertEquals(10.0, interior[0], 0.0)
+    assertEquals(20.0, interior[1], 0.0)
+    assertEquals(250.0, interior[2], 0.0)
+    // The (axis-aligned) top edge still carries the stroke color.
+    val border = result.get(5, 20)
+    assertEquals(56.0, border[0], 0.0)
+    assertEquals(34.0, border[1], 0.0)
+    assertEquals(12.0, border[2], 0.0)
+    result.release()
+  }
+
   // --- In-memory / base64 I/O (executeIO) ------------------------------------
 
   /** Encode the synthetic source image to a base64 string for `executeIO`. */

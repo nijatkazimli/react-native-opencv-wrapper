@@ -34,6 +34,11 @@ object OpRegistry {
     MorphologyExOp,
     BitwiseNotOp,
     ApplyMaskOp,
+    DrawRectOp,
+    DrawCircleOp,
+    DrawLineOp,
+    PutTextOp,
+    DrawPolygonOp,
     DebugOp,
     ScanDocumentOp,
   ).associateBy { it.name }

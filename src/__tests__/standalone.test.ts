@@ -20,6 +20,11 @@ import {
   adaptiveThreshold,
   morphologyEx,
   bitwiseNot,
+  drawRect,
+  drawCircle,
+  drawLine,
+  putText,
+  drawPolygon,
   standaloneOps,
   runStandaloneOp,
 } from "../standalone";
@@ -43,7 +48,7 @@ beforeEach(() => {
 
 /** Parse the ops JSON from the n-th runPipeline call. */
 function opsOf(callIndex = 0): unknown {
-  return JSON.parse(native.runPipeline.mock.calls[callIndex][2]);
+  return JSON.parse(native.runPipeline.mock.calls[callIndex]![2]);
 }
 
 describe("getOpenCVVersion", () => {
@@ -258,6 +263,205 @@ describe("pipeline-backed standalone wrappers", () => {
   it("bitwiseNot runs a single bitwiseNot op", async () => {
     await bitwiseNot("/in.png", "/out.png");
     expect(opsOf()).toEqual([{ type: "bitwiseNot" }]);
+  });
+
+  it("drawRect defaults color and thickness", async () => {
+    await drawRect("/in.png", "/out.png", 1, 2, 3, 4);
+    expect(opsOf()).toEqual([
+      {
+        type: "drawRect",
+        x: 1,
+        y: 2,
+        width: 3,
+        height: 4,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+    ]);
+  });
+
+  it("drawRect forwards explicit color, thickness, fillColor, and antialias", async () => {
+    await drawRect("/in.png", "/out.png", 1, 2, 3, 4, {
+      color: [10, 20, 30],
+      thickness: 5,
+      fillColor: [100, 110, 120],
+      antialias: false,
+    });
+    expect(opsOf()).toEqual([
+      {
+        type: "drawRect",
+        x: 1,
+        y: 2,
+        width: 3,
+        height: 4,
+        color: [10, 20, 30],
+        thickness: 5,
+        fillColor: [100, 110, 120],
+        antialias: false,
+      },
+    ]);
+  });
+
+  it("drawCircle defaults color and thickness", async () => {
+    await drawCircle("/in.png", "/out.png", 5, 6, 7);
+    expect(opsOf()).toEqual([
+      {
+        type: "drawCircle",
+        centerX: 5,
+        centerY: 6,
+        radius: 7,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+    ]);
+  });
+
+  it("drawCircle forwards explicit color, thickness, fillColor, and antialias", async () => {
+    await drawCircle("/in.png", "/out.png", 5, 6, 7, {
+      color: [0, 255, 0],
+      thickness: 4,
+      fillColor: [44, 55, 66],
+      antialias: false,
+    });
+    expect(opsOf()).toEqual([
+      {
+        type: "drawCircle",
+        centerX: 5,
+        centerY: 6,
+        radius: 7,
+        color: [0, 255, 0],
+        thickness: 4,
+        fillColor: [44, 55, 66],
+        antialias: false,
+      },
+    ]);
+  });
+
+  it("drawLine defaults color and thickness", async () => {
+    await drawLine("/in.png", "/out.png", 0, 0, 9, 9);
+    expect(opsOf()).toEqual([
+      {
+        type: "drawLine",
+        x1: 0,
+        y1: 0,
+        x2: 9,
+        y2: 9,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+    ]);
+  });
+
+  it("drawLine forwards explicit color, thickness, and antialias", async () => {
+    await drawLine("/in.png", "/out.png", 0, 0, 9, 9, {
+      color: [0, 0, 255],
+      thickness: 3,
+      antialias: false,
+    });
+    expect(opsOf()).toEqual([
+      {
+        type: "drawLine",
+        x1: 0,
+        y1: 0,
+        x2: 9,
+        y2: 9,
+        color: [0, 0, 255],
+        thickness: 3,
+        antialias: false,
+      },
+    ]);
+  });
+
+  it("putText defaults fontScale, color, and thickness", async () => {
+    await putText("/in.png", "/out.png", "hi", 5, 6);
+    expect(opsOf()).toEqual([
+      {
+        type: "putText",
+        text: "hi",
+        x: 5,
+        y: 6,
+        fontScale: 1,
+        color: [255, 0, 0],
+        thickness: 2,
+        antialias: true,
+      },
+    ]);
+  });
+
+  it("putText forwards explicit fontScale, color, thickness, and antialias", async () => {
+    await putText("/in.png", "/out.png", "hi", 5, 6, {
+      fontScale: 2,
+      color: [255, 255, 0],
+      thickness: 3,
+      antialias: false,
+    });
+    expect(opsOf()).toEqual([
+      {
+        type: "putText",
+        text: "hi",
+        x: 5,
+        y: 6,
+        fontScale: 2,
+        color: [255, 255, 0],
+        thickness: 3,
+        antialias: false,
+      },
+    ]);
+  });
+
+  it("drawPolygon defaults color, thickness, closed, and fill", async () => {
+    await drawPolygon("/in.png", "/out.png", [
+      [0, 0],
+      [1, 1],
+    ]);
+    expect(opsOf()).toEqual([
+      {
+        type: "drawPolygon",
+        points: [
+          [0, 0],
+          [1, 1],
+        ],
+        color: [255, 0, 0],
+        thickness: 2,
+        closed: true,
+        antialias: true,
+      },
+    ]);
+  });
+
+  it("drawPolygon forwards explicit color, thickness, closed, fillColor, and antialias", async () => {
+    await drawPolygon(
+      "/in.png",
+      "/out.png",
+      [
+        [0, 0],
+        [1, 1],
+      ],
+      {
+        color: [9, 8, 7],
+        thickness: 4,
+        closed: false,
+        fillColor: [12, 13, 14],
+        antialias: false,
+      },
+    );
+    expect(opsOf()).toEqual([
+      {
+        type: "drawPolygon",
+        points: [
+          [0, 0],
+          [1, 1],
+        ],
+        color: [9, 8, 7],
+        thickness: 4,
+        closed: false,
+        fillColor: [12, 13, 14],
+        antialias: false,
+      },
+    ]);
   });
 });
 

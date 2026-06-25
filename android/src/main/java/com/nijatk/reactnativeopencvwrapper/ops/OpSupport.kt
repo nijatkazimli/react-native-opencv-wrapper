@@ -1,8 +1,11 @@
 package com.nijatk.reactnativeopencvwrapper.ops
 
 import android.util.Base64
+import org.json.JSONArray
+import org.json.JSONObject
 import org.opencv.core.Mat
 import org.opencv.core.MatOfByte
+import org.opencv.core.Scalar
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 
@@ -20,6 +23,22 @@ object OpSupport {
   /** Require a positive odd kernel size. */
   fun requireOdd(k: Int) =
     require(k >= 1 && k % 2 == 1) { "kernelSize must be a positive odd integer" }
+
+  /**
+   * Convert a JS `[r, g, b]` color array (each 0–255) to a BGR [Scalar] for
+   * drawing ops. Returns `fallback` when the value is missing or malformed.
+   */
+  fun colorScalar(arr: JSONArray?, fallback: Scalar): Scalar {
+    if (arr == null || arr.length() < 3) return fallback
+    return Scalar(arr.getDouble(2), arr.getDouble(1), arr.getDouble(0))
+  }
+
+  /**
+   * Line type for a drawing op, honoring the optional `antialias` param
+   * (default `true` -> [Imgproc.LINE_AA]; `false` -> [Imgproc.LINE_8]).
+   */
+  fun lineType(params: JSONObject): Int =
+    if (params.optBoolean("antialias", true)) Imgproc.LINE_AA else Imgproc.LINE_8
 
   /** Read an image or throw if it cannot be decoded. */
   fun readOrThrow(path: String, flag: Int): Mat {

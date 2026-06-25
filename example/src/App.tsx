@@ -25,13 +25,9 @@ const SAMPLE_PNG_BASE64 =
 const DIR = RNFS.CachesDirectoryPath;
 const INPUT_PATH = `${DIR}/sample.png`;
 
-// Fixed on-screen size of every result image (see styles.image). The corner
-// overlay maps detector coordinates onto this box, accounting for the
-// letterboxing introduced by `resizeMode: "contain"`.
+// Fixed on-screen size of every result image (see styles.image).
 const IMAGE_W = 200;
 const IMAGE_H = 260;
-const DOT = 12;
-const OVERLAY_COLOR = "#39FF14";
 
 async function ensureSampleImage() {
   // Always overwrite — base64 contents may have changed across app updates,
@@ -87,14 +83,77 @@ const DEMOS: readonly Demo[] = [
       p.applyMask((mask) => mask.inRange([0, 0, 0], [110, 110, 110])),
   },
   {
+    label: "Box",
+    configure: (p) => p.resize(256, 256, "area").drawRect(40, 40, 176, 176),
+  },
+  {
+    label: "Fill Box",
+    configure: (p) =>
+      p.resize(256, 256, "area").drawRect(40, 40, 176, 176, {
+        color: [255, 255, 255],
+        thickness: 3,
+        fillColor: [0, 200, 255],
+      }),
+  },
+  {
+    label: "Circle",
+    configure: (p) =>
+      p
+        .resize(256, 256, "area")
+        .drawCircle(128, 128, 96, { color: [0, 200, 255] }),
+  },
+  {
+    label: "Disc",
+    configure: (p) =>
+      p.resize(256, 256, "area").drawCircle(128, 128, 96, {
+        color: [255, 255, 255],
+        thickness: 3,
+        fillColor: [0, 200, 255],
+      }),
+  },
+  {
+    label: "Label",
+    configure: (p) =>
+      p.resize(256, 256, "area").putText("hello", 24, 140, {
+        fontScale: 1.6,
+        color: [255, 255, 0],
+        thickness: 3,
+      }),
+  },
+  {
+    label: "Polygon",
+    configure: (p) =>
+      p.resize(256, 256, "area").drawPolygon(
+        [
+          [128, 24],
+          [232, 104],
+          [192, 232],
+          [64, 232],
+          [24, 104],
+        ],
+        { color: [255, 0, 200], thickness: 3 },
+      ),
+  },
+  {
+    label: "Fill Poly",
+    configure: (p) =>
+      p.resize(256, 256, "area").drawPolygon(
+        [
+          [128, 24],
+          [232, 104],
+          [192, 232],
+          [64, 232],
+          [24, 104],
+        ],
+        { color: [255, 255, 255], thickness: 3, fillColor: [255, 0, 200] },
+      ),
+  },
+  {
     label: "Pipeline",
     configure: (p) =>
       p.resize(128, 128, "area").gray().gaussianBlur(7).canny(50, 150),
   },
 ];
-
-type Corner = { x: number; y: number };
-type DetectOverlay = { corners: Corner[]; width: number; height: number };
 
 type Result = {
   id: string;
@@ -103,7 +162,6 @@ type Result = {
   note: string;
   compareUri?: string;
   captions?: { left: string; right: string };
-  overlay?: DetectOverlay;
 };
 
 export default function App() {
@@ -261,20 +319,49 @@ export default function App() {
       const doc = await pipeline()
         .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
         .detectDocument();
-      const note = doc.found
-        ? `corners (in ${doc.width}\u00d7${doc.height}): ${doc.corners
-            .map((c) => `(${Math.round(c.x)},${Math.round(c.y)})`)
-            .join(" ")}`
-        : "no document found";
+      if (!doc.found) {
+        setResults((r) => [
+          {
+            id: `detect-${Date.now()}`,
+            label: "Detect Document",
+            uri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+            note: "no document found",
+          },
+          ...r,
+        ]);
+        return;
+      }
+      // Annotate the detected quad and its corners natively with drawPolygon /
+      // drawCircle, scaling the stroke to the image so it stays visible.
+      const points = doc.corners.map(
+        ({ x, y }) => [Math.round(x), Math.round(y)] as const,
+      );
+      const thickness = Math.max(
+        2,
+        Math.round(Math.max(doc.width, doc.height) / 200),
+      );
+      let annotated = pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .outputBase64("png")
+        .drawPolygon(points, { color: [57, 255, 20], thickness });
+      for (const [x, y] of points) {
+        annotated = annotated.drawCircle(x, y, thickness * 3, {
+          color: [255, 0, 0],
+          thickness,
+          fillColor: [255, 0, 0],
+        });
+      }
+      const outBase64 = await annotated.run();
       setResults((r) => [
         {
           id: `detect-${Date.now()}`,
           label: "Detect Document",
-          uri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
-          note,
-          overlay: doc.found
-            ? { corners: doc.corners, width: doc.width, height: doc.height }
-            : undefined,
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+          captions: { left: "original", right: "detected" },
+          note: `corners (in ${doc.width}\u00d7${doc.height}): ${points
+            .map(([x, y]) => `(${x},${y})`)
+            .join(" ")}`,
         },
         ...r,
       ]);
@@ -326,71 +413,12 @@ export default function App() {
                 <Image source={{ uri: r.uri }} style={styles.image} />
               </View>
             </View>
-          ) : r.overlay ? (
-            <View style={styles.overlayWrap}>
-              <Image source={{ uri: r.uri }} style={styles.overlayImage} />
-              <CornerOverlay overlay={r.overlay} />
-            </View>
           ) : (
             <Image source={{ uri: r.uri }} style={styles.image} />
           )}
         </View>
       ))}
     </ScrollView>
-  );
-}
-
-/**
- * Draw the four detected document corners (dots + connecting edges) over the
- * original image. Detector coordinates live in a `width \u00d7 height` space, so we
- * map them onto the on-screen image rect, accounting for the letterbox padding
- * that `resizeMode: "contain"` adds inside the fixed IMAGE_W \u00d7 IMAGE_H box.
- */
-function CornerOverlay({ overlay }: Readonly<{ overlay: DetectOverlay }>) {
-  const { corners, width, height } = overlay;
-  if (corners.length < 4) return null;
-
-  const scale = Math.min(IMAGE_W / width, IMAGE_H / height);
-  const offX = (IMAGE_W - width * scale) / 2;
-  const offY = (IMAGE_H - height * scale) / 2;
-  const pts = corners.map((c) => ({
-    x: offX + c.x * scale,
-    y: offY + c.y * scale,
-  }));
-  const edges = [
-    [pts[0], pts[1]],
-    [pts[1], pts[2]],
-    [pts[2], pts[3]],
-    [pts[3], pts[0]],
-  ];
-
-  return (
-    <View style={styles.overlay} pointerEvents="none">
-      {edges.map(([a, b], i) => {
-        const len = Math.hypot(b.x - a.x, b.y - a.y);
-        const angle = Math.atan2(b.y - a.y, b.x - a.x);
-        return (
-          <View
-            key={`edge-${i}`}
-            style={[
-              styles.edge,
-              {
-                left: (a.x + b.x) / 2 - len / 2,
-                top: (a.y + b.y) / 2 - 1,
-                width: len,
-                transform: [{ rotate: `${angle}rad` }],
-              },
-            ]}
-          />
-        );
-      })}
-      {pts.map((p, i) => (
-        <View
-          key={`corner-${i}`}
-          style={[styles.dot, { left: p.x - DOT / 2, top: p.y - DOT / 2 }]}
-        />
-      ))}
-    </View>
   );
 }
 
@@ -429,27 +457,4 @@ const styles = StyleSheet.create({
   compareRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
   compareCell: { gap: 4 },
   caption: { fontSize: 12, fontWeight: "600", color: "#444" },
-  overlayWrap: {
-    position: "relative",
-    width: IMAGE_W,
-    height: IMAGE_H,
-    alignSelf: "flex-start",
-    backgroundColor: "#eee",
-  },
-  overlayImage: { ...StyleSheet.absoluteFill, resizeMode: "contain" },
-  overlay: { ...StyleSheet.absoluteFill },
-  edge: {
-    position: "absolute",
-    height: 2,
-    backgroundColor: OVERLAY_COLOR,
-  },
-  dot: {
-    position: "absolute",
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    backgroundColor: OVERLAY_COLOR,
-    borderWidth: 1,
-    borderColor: "#000",
-  },
 });
