@@ -89,28 +89,36 @@ const DEMOS: readonly Demo[] = [
   {
     label: "Fill Box",
     configure: (p) =>
-      p
-        .resize(256, 256, "area")
-        .drawRect(40, 40, 176, 176, [255, 255, 255], 3, [0, 200, 255]),
+      p.resize(256, 256, "area").drawRect(40, 40, 176, 176, {
+        color: [255, 255, 255],
+        thickness: 3,
+        fillColor: [0, 200, 255],
+      }),
   },
   {
     label: "Circle",
     configure: (p) =>
-      p.resize(256, 256, "area").drawCircle(128, 128, 96, [0, 200, 255]),
+      p
+        .resize(256, 256, "area")
+        .drawCircle(128, 128, 96, { color: [0, 200, 255] }),
   },
   {
     label: "Disc",
     configure: (p) =>
-      p
-        .resize(256, 256, "area")
-        .drawCircle(128, 128, 96, [255, 255, 255], 3, [0, 200, 255]),
+      p.resize(256, 256, "area").drawCircle(128, 128, 96, {
+        color: [255, 255, 255],
+        thickness: 3,
+        fillColor: [0, 200, 255],
+      }),
   },
   {
     label: "Label",
     configure: (p) =>
-      p
-        .resize(256, 256, "area")
-        .putText("hello", 24, 140, 1.6, [255, 255, 0], 3),
+      p.resize(256, 256, "area").putText("hello", 24, 140, {
+        fontScale: 1.6,
+        color: [255, 255, 0],
+        thickness: 3,
+      }),
   },
   {
     label: "Polygon",
@@ -123,8 +131,7 @@ const DEMOS: readonly Demo[] = [
           [64, 232],
           [24, 104],
         ],
-        [255, 0, 200],
-        3,
+        { color: [255, 0, 200], thickness: 3 },
       ),
   },
   {
@@ -138,10 +145,7 @@ const DEMOS: readonly Demo[] = [
           [64, 232],
           [24, 104],
         ],
-        [255, 255, 255],
-        3,
-        true,
-        [255, 0, 200],
+        { color: [255, 255, 255], thickness: 3, fillColor: [255, 0, 200] },
       ),
   },
   {
@@ -339,16 +343,13 @@ export default function App() {
       let annotated = pipeline()
         .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
         .outputBase64("png")
-        .drawPolygon(points, [57, 255, 20], thickness);
+        .drawPolygon(points, { color: [57, 255, 20], thickness });
       for (const [x, y] of points) {
-        annotated = annotated.drawCircle(
-          x,
-          y,
-          thickness * 3,
-          [255, 0, 0],
+        annotated = annotated.drawCircle(x, y, thickness * 3, {
+          color: [255, 0, 0],
           thickness,
-          [255, 0, 0],
-        );
+          fillColor: [255, 0, 0],
+        });
       }
       const outBase64 = await annotated.run();
       setResults((r) => [

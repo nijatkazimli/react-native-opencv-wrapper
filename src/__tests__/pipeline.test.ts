@@ -387,21 +387,42 @@ describe("Pipeline builder", () => {
     await pipeline()
       .input("/in.png")
       .output("/out.png")
-      .drawRect(1, 2, 3, 4, [10, 20, 30], 5, [100, 110, 120], false)
-      .drawCircle(6, 7, 8, [11, 22, 33], 9, [44, 55, 66], false)
-      .drawLine(1, 2, 3, 4, [40, 50, 60], 7, false)
-      .putText("label", 5, 6, 2, [70, 80, 90], 4, false)
+      .drawRect(1, 2, 3, 4, {
+        color: [10, 20, 30],
+        thickness: 5,
+        fillColor: [100, 110, 120],
+        antialias: false,
+      })
+      .drawCircle(6, 7, 8, {
+        color: [11, 22, 33],
+        thickness: 9,
+        fillColor: [44, 55, 66],
+        antialias: false,
+      })
+      .drawLine(1, 2, 3, 4, {
+        color: [40, 50, 60],
+        thickness: 7,
+        antialias: false,
+      })
+      .putText("label", 5, 6, {
+        fontScale: 2,
+        color: [70, 80, 90],
+        thickness: 4,
+        antialias: false,
+      })
       .drawPolygon(
         [
           [1, 1],
           [2, 2],
           [3, 3],
         ],
-        [99, 88, 77],
-        6,
-        false,
-        [12, 13, 14],
-        false,
+        {
+          color: [99, 88, 77],
+          thickness: 6,
+          closed: false,
+          fillColor: [12, 13, 14],
+          antialias: false,
+        },
       )
       .run();
 

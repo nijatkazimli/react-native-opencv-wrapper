@@ -48,7 +48,7 @@ beforeEach(() => {
 
 /** Parse the ops JSON from the n-th runPipeline call. */
 function opsOf(callIndex = 0): unknown {
-  return JSON.parse(native.runPipeline.mock.calls[callIndex][2]);
+  return JSON.parse(native.runPipeline.mock.calls[callIndex]![2]);
 }
 
 describe("getOpenCVVersion", () => {
@@ -282,18 +282,12 @@ describe("pipeline-backed standalone wrappers", () => {
   });
 
   it("drawRect forwards explicit color, thickness, fillColor, and antialias", async () => {
-    await drawRect(
-      "/in.png",
-      "/out.png",
-      1,
-      2,
-      3,
-      4,
-      [10, 20, 30],
-      5,
-      [100, 110, 120],
-      false,
-    );
+    await drawRect("/in.png", "/out.png", 1, 2, 3, 4, {
+      color: [10, 20, 30],
+      thickness: 5,
+      fillColor: [100, 110, 120],
+      antialias: false,
+    });
     expect(opsOf()).toEqual([
       {
         type: "drawRect",
@@ -325,17 +319,12 @@ describe("pipeline-backed standalone wrappers", () => {
   });
 
   it("drawCircle forwards explicit color, thickness, fillColor, and antialias", async () => {
-    await drawCircle(
-      "/in.png",
-      "/out.png",
-      5,
-      6,
-      7,
-      [0, 255, 0],
-      4,
-      [44, 55, 66],
-      false,
-    );
+    await drawCircle("/in.png", "/out.png", 5, 6, 7, {
+      color: [0, 255, 0],
+      thickness: 4,
+      fillColor: [44, 55, 66],
+      antialias: false,
+    });
     expect(opsOf()).toEqual([
       {
         type: "drawCircle",
@@ -367,7 +356,11 @@ describe("pipeline-backed standalone wrappers", () => {
   });
 
   it("drawLine forwards explicit color, thickness, and antialias", async () => {
-    await drawLine("/in.png", "/out.png", 0, 0, 9, 9, [0, 0, 255], 3, false);
+    await drawLine("/in.png", "/out.png", 0, 0, 9, 9, {
+      color: [0, 0, 255],
+      thickness: 3,
+      antialias: false,
+    });
     expect(opsOf()).toEqual([
       {
         type: "drawLine",
@@ -399,17 +392,12 @@ describe("pipeline-backed standalone wrappers", () => {
   });
 
   it("putText forwards explicit fontScale, color, thickness, and antialias", async () => {
-    await putText(
-      "/in.png",
-      "/out.png",
-      "hi",
-      5,
-      6,
-      2,
-      [255, 255, 0],
-      3,
-      false,
-    );
+    await putText("/in.png", "/out.png", "hi", 5, 6, {
+      fontScale: 2,
+      color: [255, 255, 0],
+      thickness: 3,
+      antialias: false,
+    });
     expect(opsOf()).toEqual([
       {
         type: "putText",
@@ -452,11 +440,13 @@ describe("pipeline-backed standalone wrappers", () => {
         [0, 0],
         [1, 1],
       ],
-      [9, 8, 7],
-      4,
-      false,
-      [12, 13, 14],
-      false,
+      {
+        color: [9, 8, 7],
+        thickness: 4,
+        closed: false,
+        fillColor: [12, 13, 14],
+        antialias: false,
+      },
     );
     expect(opsOf()).toEqual([
       {

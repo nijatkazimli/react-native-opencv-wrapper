@@ -16,8 +16,11 @@ import type {
   AdaptiveThresholdType,
 } from "./ops/adaptiveThreshold";
 import type { MorphOperation } from "./ops/morphologyEx";
-import type { Color } from "./ops/drawRect";
-import type { Point2D } from "./ops/drawPolygon";
+import type { DrawRectOptions } from "./ops/drawRect";
+import type { DrawCircleOptions } from "./ops/drawCircle";
+import type { DrawLineOptions } from "./ops/drawLine";
+import type { PutTextOptions } from "./ops/putText";
+import type { Point2D, DrawPolygonOptions } from "./ops/drawPolygon";
 import "./ops";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
@@ -289,10 +292,7 @@ export function drawRect(
   y: number,
   width: number,
   height: number,
-  color: Color = [255, 0, 0],
-  thickness: number = 2,
-  fillColor?: Color,
-  antialias: boolean = true,
+  options?: DrawRectOptions,
 ): Promise<string> {
   return runStandaloneOp(
     "drawRect",
@@ -302,10 +302,7 @@ export function drawRect(
     y,
     width,
     height,
-    color,
-    thickness,
-    fillColor,
-    antialias,
+    options,
   );
 }
 
@@ -316,10 +313,7 @@ export function drawCircle(
   centerX: number,
   centerY: number,
   radius: number,
-  color: Color = [255, 0, 0],
-  thickness: number = 2,
-  fillColor?: Color,
-  antialias: boolean = true,
+  options?: DrawCircleOptions,
 ): Promise<string> {
   return runStandaloneOp(
     "drawCircle",
@@ -328,10 +322,7 @@ export function drawCircle(
     centerX,
     centerY,
     radius,
-    color,
-    thickness,
-    fillColor,
-    antialias,
+    options,
   );
 }
 
@@ -343,9 +334,7 @@ export function drawLine(
   y1: number,
   x2: number,
   y2: number,
-  color: Color = [255, 0, 0],
-  thickness: number = 2,
-  antialias: boolean = true,
+  options?: DrawLineOptions,
 ): Promise<string> {
   return runStandaloneOp(
     "drawLine",
@@ -355,9 +344,7 @@ export function drawLine(
     y1,
     x2,
     y2,
-    color,
-    thickness,
-    antialias,
+    options,
   );
 }
 
@@ -368,23 +355,9 @@ export function putText(
   text: string,
   x: number,
   y: number,
-  fontScale: number = 1,
-  color: Color = [255, 0, 0],
-  thickness: number = 2,
-  antialias: boolean = true,
+  options?: PutTextOptions,
 ): Promise<string> {
-  return runStandaloneOp(
-    "putText",
-    inputPath,
-    outputPath,
-    text,
-    x,
-    y,
-    fontScale,
-    color,
-    thickness,
-    antialias,
-  );
+  return runStandaloneOp("putText", inputPath, outputPath, text, x, y, options);
 }
 
 /** Standalone wrapper for `drawPolygon`: draw a polyline/polygon onto an image. */
@@ -392,21 +365,7 @@ export function drawPolygon(
   inputPath: string,
   outputPath: string,
   points: readonly Point2D[],
-  color: Color = [255, 0, 0],
-  thickness: number = 2,
-  closed: boolean = true,
-  fillColor?: Color,
-  antialias: boolean = true,
+  options?: DrawPolygonOptions,
 ): Promise<string> {
-  return runStandaloneOp(
-    "drawPolygon",
-    inputPath,
-    outputPath,
-    points,
-    color,
-    thickness,
-    closed,
-    fillColor,
-    antialias,
-  );
+  return runStandaloneOp("drawPolygon", inputPath, outputPath, points, options);
 }
