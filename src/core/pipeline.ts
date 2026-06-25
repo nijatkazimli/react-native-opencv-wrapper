@@ -129,6 +129,16 @@ export class Pipeline<
   }
 
   /**
+   * Return a deep copy of the queued ops. Used by composite ops (e.g.
+   * {@link Pipeline.applyMask}) that capture a sub-pipeline's steps as the
+   * parameters of a single parent op; not intended for direct use.
+   * @internal
+   */
+  serializedOps(): SerializedOp[] {
+    return this.ops.map((op) => ({ ...op }));
+  }
+
+  /**
    * Return an independent copy preserving input/output state and queued ops,
    * so a shared base can branch into variants without sharing the op list.
    */

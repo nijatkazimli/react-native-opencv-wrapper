@@ -123,24 +123,28 @@ URIs), and every async call resolves with the output path.
 
 ### Operations
 
-| Operation     | Method / function                             | Parameters                                                                                                                                                                                     |
-| ------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Grayscale     | `gray()` (alias `toGray`)                     | –                                                                                                                                                                                              |
-| Gaussian blur | `gaussianBlur(kernelSize, sigmaX?)`           | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                                                    |
-| Median blur   | `medianBlur(kernelSize)`                      | `kernelSize`: positive odd int                                                                                                                                                                 |
-| Canny edges   | `canny(threshold1, threshold2)`               | lower/upper hysteresis thresholds                                                                                                                                                              |
-| Threshold     | `threshold(thresh, maxValue, thresholdType?)` | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`)                                                                                  |
-| Resize        | `resize(width, height, interpolation?)`       | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                                                                                                       |
-| Crop          | `crop(x, y, width, height)`                   | rectangle must lie within image bounds                                                                                                                                                         |
-| Rotate        | `rotate(angle)`                               | `angle`: `90` \| `180` \| `270` (clockwise)                                                                                                                                                    |
-| Flip          | `flip(direction)`                             | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                                                                                                        |
-| Dilate        | `dilate(kernelSize, iterations?)`             | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                      |
-| Erode         | `erode(kernelSize, iterations?)`              | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                      |
-| Convert color | `cvtColor(code)`                              | `code`: `"BGR2GRAY"` \| `"GRAY2BGR"` \| `"BGR2RGB"` \| `"RGB2BGR"` \| `"BGR2HSV"` \| `"HSV2BGR"` \| `"BGR2HLS"` \| `"HLS2BGR"` \| `"BGR2Lab"` \| `"Lab2BGR"` \| `"BGR2YCrCb"` \| `"YCrCb2BGR"` |
-| In-range mask | `inRange(lower, upper)`                       | `lower`/`upper`: per-channel bounds (1–4 numbers, same length as the image's channel count); returns a single-channel binary mask                                                              |
-| Filter 2D     | `filter2D(kernel)`                            | `kernel`: a non-empty 2D number array (equal-length rows); arbitrary convolution that keeps the source depth/channels                                                                          |
-| Debug capture | `debug(path)`                                 | `path`: absolute file path; writes the current intermediate image (encoder from the extension) and passes it through unchanged                                                                 |
-| Scan document | `scanDocument(options?)`                      | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                  |
+| Operation          | Method / function                                                    | Parameters                                                                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grayscale          | `gray()` (alias `toGray`)                                            | –                                                                                                                                                                                                  |
+| Gaussian blur      | `gaussianBlur(kernelSize, sigmaX?)`                                  | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                                                        |
+| Median blur        | `medianBlur(kernelSize)`                                             | `kernelSize`: positive odd int                                                                                                                                                                     |
+| Canny edges        | `canny(threshold1, threshold2)`                                      | lower/upper hysteresis thresholds                                                                                                                                                                  |
+| Threshold          | `threshold(thresh, maxValue, thresholdType?)`                        | `thresholdType`: `"binary"` \| `"binaryInv"` \| `"trunc"` \| `"toZero"` \| `"toZeroInv"` (default `"binary"`)                                                                                      |
+| Resize             | `resize(width, height, interpolation?)`                              | `interpolation`: `"nearest"` \| `"linear"` \| `"cubic"` \| `"area"` (default `"linear"`)                                                                                                           |
+| Crop               | `crop(x, y, width, height)`                                          | rectangle must lie within image bounds                                                                                                                                                             |
+| Rotate             | `rotate(angle)`                                                      | `angle`: `90` \| `180` \| `270` (clockwise)                                                                                                                                                        |
+| Flip               | `flip(direction)`                                                    | `direction`: `"horizontal"` \| `"vertical"` \| `"both"`                                                                                                                                            |
+| Dilate             | `dilate(kernelSize, iterations?)`                                    | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                          |
+| Erode              | `erode(kernelSize, iterations?)`                                     | `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                          |
+| Convert color      | `cvtColor(code)`                                                     | `code`: `"BGR2GRAY"` \| `"GRAY2BGR"` \| `"BGR2RGB"` \| `"RGB2BGR"` \| `"BGR2HSV"` \| `"HSV2BGR"` \| `"BGR2HLS"` \| `"HLS2BGR"` \| `"BGR2Lab"` \| `"Lab2BGR"` \| `"BGR2YCrCb"` \| `"YCrCb2BGR"`     |
+| In-range mask      | `inRange(lower, upper)`                                              | `lower`/`upper`: per-channel bounds (1–4 numbers, same length as the image's channel count); returns a single-channel binary mask                                                                  |
+| Filter 2D          | `filter2D(kernel)`                                                   | `kernel`: a non-empty 2D number array (equal-length rows); arbitrary convolution that keeps the source depth/channels                                                                              |
+| Adaptive threshold | `adaptiveThreshold(maxValue, blockSize, c, method?, thresholdType?)` | `blockSize`: odd int ≥ 3; `c`: constant subtracted; `method`: `"mean"` \| `"gaussian"` (default `"gaussian"`); `thresholdType`: `"binary"` \| `"binaryInv"` (default `"binary"`); grayscaled first |
+| Morphology         | `morphologyEx(operation, kernelSize, iterations?)`                   | `operation`: `"open"` \| `"close"` \| `"gradient"` \| `"tophat"` \| `"blackhat"`; `kernelSize`: positive odd int; `iterations`: default `1`                                                        |
+| Bitwise not        | `bitwiseNot()`                                                       | inverts every pixel (`0 ↔ 255` on a mask)                                                                                                                                                          |
+| Apply mask         | `applyMask(build)`                                                   | `build(mask)`: a sub-pipeline that derives a single-channel mask from a copy of the current image; keeps the current pixels the mask selects and zeroes the rest                                   |
+| Debug capture      | `debug(path)`                                                        | `path`: absolute file path; writes the current intermediate image (encoder from the extension) and passes it through unchanged                                                                     |
+| Scan document      | `scanDocument(options?)`                                             | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                      |
 
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
@@ -169,6 +173,9 @@ import {
   cvtColor,
   inRange,
   filter2D,
+  adaptiveThreshold,
+  morphologyEx,
+  bitwiseNot,
 } from "@nijatk/react-native-opencv-wrapper";
 
 const input = "/abs/path/input.png";
@@ -194,6 +201,9 @@ await filter2D(input, output, [
   [-1, 5, -1],
   [0, -1, 0],
 ]); // sharpen
+await adaptiveThreshold(input, output, 255, 11, 2); // binarize uneven lighting
+await morphologyEx(input, output, "open", 3); // denoise a mask
+await bitwiseNot(input, output); // invert
 ```
 
 > `toGray(input, output)` is kept as an alias of `gray(input, output)`.
@@ -248,6 +258,30 @@ await pipeline()
 The encoder is chosen from `path`'s extension (`.png`, `.jpg`, ...). It is a
 side effect only — the image handed to the next step is identical to the one
 before `debug`.
+
+#### Masking with a sub-pipeline (`applyMask`)
+
+`inRange` and `cvtColor` _produce_ masks, but on their own they replace the
+image with the mask. `applyMask(build)` closes the loop: `build` receives a
+fresh sub-pipeline that runs on a **copy** of the current image to derive a
+single-channel mask, then the original image flows out with everything outside
+the mask zeroed — segment-and-keep in a single pass.
+
+```ts
+await pipeline()
+  .input("/abs/in.png")
+  .output("/abs/out.png")
+  // isolate green pixels, keeping them in full color
+  .applyMask((mask) =>
+    mask.cvtColor("BGR2HSV").inRange([35, 60, 60], [85, 255, 255]),
+  )
+  // clean up the result with morphology
+  .run();
+```
+
+The sub-pipeline must yield a single-channel mask the same size as the current
+image (chain only transform ops on it — there is no `input`/`output`/`run`).
+Pair it with `morphologyEx` to denoise the mask before applying it.
 
 ### Base64 / in-memory I/O
 

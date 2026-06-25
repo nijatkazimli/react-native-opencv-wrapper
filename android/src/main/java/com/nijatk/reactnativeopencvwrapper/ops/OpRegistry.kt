@@ -30,6 +30,10 @@ object OpRegistry {
     CvtColorOp,
     InRangeOp,
     Filter2DOp,
+    AdaptiveThresholdOp,
+    MorphologyExOp,
+    BitwiseNotOp,
+    ApplyMaskOp,
     DebugOp,
     ScanDocumentOp,
   ).associateBy { it.name }
@@ -108,6 +112,14 @@ object OpRegistry {
     op.put("type", opName)
     execute(inputPath, outputPath, JSONArray().put(op).toString())
   }
+
+  /**
+   * Run `opsJson` on a copy of `current`, returning the resulting [Mat]. Used
+   * by composite ops (e.g. [ApplyMaskOp]) to evaluate a sub-pipeline without
+   * disturbing the caller's Mat. The caller owns and must release the result.
+   */
+  fun runSubPipeline(current: Mat, opsJson: String): Mat =
+    applyOps(opsJson, current.clone())
 
   /**
    * Apply every op in `opsJson` to `source`, releasing intermediates. Takes

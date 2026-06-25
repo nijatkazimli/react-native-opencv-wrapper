@@ -468,6 +468,152 @@ static const int kHeight = 60;
   XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
 }
 
+- (void)testAdaptiveThresholdProducesSingleChannelBinary {
+  NSString *input = [self writeSourceImage:@"adaptive-in.png"];
+  NSString *output = [self outputPath:@"adaptive-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"adaptiveThreshold\",\"maxValue\":255,\"blockSize\":11,\"c\":2,\"method\":\"gaussian\",\"thresholdType\":\"binary\"}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  // A uniform image with C=2 keeps every pixel above its local mean → 255.
+  XCTAssertEqual(result.at<uchar>(0, 0), 255);
+}
+
+- (void)testAdaptiveThresholdEvenBlockSizeFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"adaptive-bad-in.png"];
+  NSString *output = [self outputPath:@"adaptive-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"adaptiveThreshold\",\"maxValue\":255,\"blockSize\":4,\"c\":2,\"method\":\"mean\",\"thresholdType\":\"binary\"}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testMorphologyExOpenPreservesUniformImage {
+  NSString *input = [self writeSourceImage:@"morph-in.png"];
+  NSString *output = [self outputPath:@"morph-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"morphologyEx\",\"operation\":\"open\",\"kernelSize\":3,\"iterations\":1}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testMorphologyExUnknownOperationFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"morph-bad-in.png"];
+  NSString *output = [self outputPath:@"morph-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"morphologyEx\",\"operation\":\"spin\",\"kernelSize\":3,\"iterations\":1}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testBitwiseNotInvertsPixels {
+  NSString *input = [self writeSourceImage:@"bitnot-in.png"];
+  NSString *output = [self outputPath:@"bitnot-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"bitwiseNot\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  // (10, 20, 30) inverts to (245, 235, 225).
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 245);
+  XCTAssertEqual(pixel[1], 235);
+  XCTAssertEqual(pixel[2], 225);
+}
+
+- (void)testApplyMaskKeepsSelectedPixels {
+  NSString *input = [self writeSourceImage:@"applymask-in.png"];
+  NSString *output = [self outputPath:@"applymask-out.png"];
+
+  // The sub-pipeline mask selects the source pixel (10,20,30), so the original
+  // color flows through unchanged.
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"applyMask\",\"mask\":[{\"type\":\"inRange\",\"lower\":[5,15,25],\"upper\":[15,25,35]}]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testApplyMaskZeroesUnselectedPixels {
+  NSString *input = [self writeSourceImage:@"applymask-zero-in.png"];
+  NSString *output = [self outputPath:@"applymask-zero-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"applyMask\",\"mask\":[{\"type\":\"inRange\",\"lower\":[100,100,100],\"upper\":[200,200,200]}]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 0);
+  XCTAssertEqual(pixel[1], 0);
+  XCTAssertEqual(pixel[2], 0);
+}
+
+- (void)testApplyMaskMultiChannelMaskFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"applymask-bad-in.png"];
+  NSString *output = [self outputPath:@"applymask-bad-out.png"];
+
+  // An empty sub-pipeline leaves the 3-channel clone untouched, which is not a
+  // valid single-channel mask.
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"applyMask\",\"mask\":[]}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
 #pragma mark - In-memory / base64 I/O (runPipelineWithInputJson)
 
 - (void)testBase64InputToPathOutput {

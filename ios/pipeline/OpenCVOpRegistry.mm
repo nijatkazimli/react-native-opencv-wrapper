@@ -163,7 +163,7 @@ static NSString *OpenCVEncodeOutput(NSDictionary *output, const Mat &mat, NSErro
 
 /// Apply every op in `ops` to `current` in place. Returns `NO` and sets
 /// `*error` on the first failing op (bad shape, unknown type, invalid params).
-static BOOL OpenCVApplyOps(NSArray *ops, Mat &current, NSError **error) {
+BOOL OpenCVApplyOps(NSArray *ops, Mat &current, NSError **error) {
     for (NSUInteger i = 0; i < ops.count; i++) {
         id rawOp = ops[i];
         if (![rawOp isKindOfClass:[NSDictionary class]]) {

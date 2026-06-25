@@ -72,6 +72,21 @@ const DEMOS: readonly Demo[] = [
       ]),
   },
   {
+    label: "Adaptive",
+    configure: (p) => p.adaptiveThreshold(255, 15, 5),
+  },
+  {
+    label: "Morph Open",
+    configure: (p) =>
+      p.gray().threshold(127, 255, "binary").morphologyEx("open", 3),
+  },
+  { label: "Invert", configure: (p) => p.bitwiseNot() },
+  {
+    label: "Mask Keep",
+    configure: (p) =>
+      p.applyMask((mask) => mask.inRange([0, 0, 0], [110, 110, 110])),
+  },
+  {
     label: "Pipeline",
     configure: (p) =>
       p.resize(128, 128, "area").gray().gaussianBlur(7).canny(50, 150),

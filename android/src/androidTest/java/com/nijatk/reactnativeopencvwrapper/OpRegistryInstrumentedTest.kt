@@ -424,6 +424,136 @@ class OpRegistryInstrumentedTest {
     OpRegistry.execute(input, output, """[{"type":"debug"}]""")
   }
 
+  @Test
+  fun adaptiveThresholdProducesSingleChannelBinary() {
+    val input = writeSourceImage("adaptive-in.png")
+    val output = outputPath("adaptive-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"adaptiveThreshold","maxValue":255,"blockSize":11,"c":2,"method":"gaussian","thresholdType":"binary"}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    // A uniform image with C=2 keeps every pixel above its local mean → 255.
+    assertEquals(255.0, result.get(0, 0)[0], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun adaptiveThresholdEvenBlockSizeThrows() {
+    val input = writeSourceImage("adaptive-bad-in.png")
+    val output = outputPath("adaptive-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"adaptiveThreshold","maxValue":255,"blockSize":4,"c":2,"method":"mean","thresholdType":"binary"}]""",
+    )
+  }
+
+  @Test
+  fun morphologyExOpenPreservesUniformImage() {
+    val input = writeSourceImage("morph-in.png")
+    val output = outputPath("morph-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"morphologyEx","operation":"open","kernelSize":3,"iterations":1}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    val pixel = result.get(0, 0)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun morphologyExUnknownOperationThrows() {
+    val input = writeSourceImage("morph-bad-in.png")
+    val output = outputPath("morph-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"morphologyEx","operation":"spin","kernelSize":3,"iterations":1}]""",
+    )
+  }
+
+  @Test
+  fun bitwiseNotInvertsPixels() {
+    val input = writeSourceImage("bitnot-in.png")
+    val output = outputPath("bitnot-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"bitwiseNot"}]""")
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    // (10, 20, 30) inverts to (245, 235, 225).
+    val pixel = result.get(0, 0)
+    assertEquals(245.0, pixel[0], 0.0)
+    assertEquals(235.0, pixel[1], 0.0)
+    assertEquals(225.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun applyMaskKeepsSelectedPixels() {
+    val input = writeSourceImage("applymask-in.png")
+    val output = outputPath("applymask-out.png")
+
+    // The sub-pipeline mask selects the source pixel (10,20,30), so the
+    // original color flows through unchanged.
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"applyMask","mask":[{"type":"inRange","lower":[5,15,25],"upper":[15,25,35]}]}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    val pixel = result.get(0, 0)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun applyMaskZeroesUnselectedPixels() {
+    val input = writeSourceImage("applymask-zero-in.png")
+    val output = outputPath("applymask-zero-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"applyMask","mask":[{"type":"inRange","lower":[100,100,100],"upper":[200,200,200]}]}]""",
+    )
+
+    val result = readResult(output)
+    val pixel = result.get(0, 0)
+    assertEquals(0.0, pixel[0], 0.0)
+    assertEquals(0.0, pixel[1], 0.0)
+    assertEquals(0.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun applyMaskMultiChannelMaskThrows() {
+    val input = writeSourceImage("applymask-bad-in.png")
+    val output = outputPath("applymask-bad-out.png")
+
+    // An empty sub-pipeline leaves the 3-channel clone untouched, which is not
+    // a valid single-channel mask.
+    OpRegistry.execute(input, output, """[{"type":"applyMask","mask":[]}]""")
+  }
+
   // --- In-memory / base64 I/O (executeIO) ------------------------------------
 
   /** Encode the synthetic source image to a base64 string for `executeIO`. */

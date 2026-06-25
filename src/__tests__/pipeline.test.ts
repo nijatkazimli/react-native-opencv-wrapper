@@ -236,6 +236,12 @@ describe("Pipeline builder", () => {
         [-1, 5, -1],
         [0, -1, 0],
       ])
+      .adaptiveThreshold(255, 11, 2)
+      .morphologyEx("open", 3)
+      .bitwiseNot()
+      .applyMask((m) =>
+        m.cvtColor("BGR2HSV").inRange([35, 60, 60], [85, 255, 255]),
+      )
       .debug("/tmp/dbg.png")
       .scanDocument()
       .run();
@@ -267,8 +273,53 @@ describe("Pipeline builder", () => {
           [0, -1, 0],
         ],
       },
+      {
+        type: "adaptiveThreshold",
+        maxValue: 255,
+        blockSize: 11,
+        c: 2,
+        method: "gaussian",
+        thresholdType: "binary",
+      },
+      { type: "morphologyEx", operation: "open", kernelSize: 3, iterations: 1 },
+      { type: "bitwiseNot" },
+      {
+        type: "applyMask",
+        mask: [
+          { type: "cvtColor", code: "BGR2HSV" },
+          { type: "inRange", lower: [35, 60, 60], upper: [85, 255, 255] },
+        ],
+      },
       { type: "debug", path: "/tmp/dbg.png" },
       { type: "scanDocument" },
+    ]);
+  });
+
+  it("passes explicit mask & morphology parameters through", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .adaptiveThreshold(200, 9, -3, "mean", "binaryInv")
+      .morphologyEx("close", 5, 2)
+      .applyMask((m) => m.gray())
+      .run();
+
+    expect(ioCall().ops).toEqual([
+      {
+        type: "adaptiveThreshold",
+        maxValue: 200,
+        blockSize: 9,
+        c: -3,
+        method: "mean",
+        thresholdType: "binaryInv",
+      },
+      {
+        type: "morphologyEx",
+        operation: "close",
+        kernelSize: 5,
+        iterations: 2,
+      },
+      { type: "applyMask", mask: [{ type: "gray" }] },
     ]);
   });
 });
