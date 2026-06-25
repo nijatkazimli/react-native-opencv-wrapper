@@ -11,6 +11,11 @@ import type { ScanDocumentOptions } from "./ops/scanDocument";
 import type { ThresholdType } from "./ops/threshold";
 import type { ColorConversion } from "./ops/cvtColor";
 import type { Kernel } from "./ops/filter2D";
+import type {
+  AdaptiveMethod,
+  AdaptiveThresholdType,
+} from "./ops/adaptiveThreshold";
+import type { MorphOperation } from "./ops/morphologyEx";
 import "./ops";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
@@ -221,4 +226,55 @@ export function filter2D(
   kernel: Kernel,
 ): Promise<string> {
   return runStandaloneOp("filter2D", inputPath, outputPath, kernel);
+}
+
+/**
+ * Standalone wrapper for `adaptiveThreshold`: binarize using a per-region
+ * threshold that tracks uneven lighting. The image is grayscaled first.
+ */
+export function adaptiveThreshold(
+  inputPath: string,
+  outputPath: string,
+  maxValue: number,
+  blockSize: number,
+  c: number,
+  method: AdaptiveMethod = "gaussian",
+  thresholdType: AdaptiveThresholdType = "binary",
+): Promise<string> {
+  return runStandaloneOp(
+    "adaptiveThreshold",
+    inputPath,
+    outputPath,
+    maxValue,
+    blockSize,
+    c,
+    method,
+    thresholdType,
+  );
+}
+
+/** Standalone wrapper for `morphologyEx`: compound morphology with a square kernel. */
+export function morphologyEx(
+  inputPath: string,
+  outputPath: string,
+  operation: MorphOperation,
+  kernelSize: number,
+  iterations: number = 1,
+): Promise<string> {
+  return runStandaloneOp(
+    "morphologyEx",
+    inputPath,
+    outputPath,
+    operation,
+    kernelSize,
+    iterations,
+  );
+}
+
+/** Standalone wrapper for `bitwiseNot`: invert every pixel (`0 ↔ 255` on a mask). */
+export function bitwiseNot(
+  inputPath: string,
+  outputPath: string,
+): Promise<string> {
+  return runStandaloneOp("bitwiseNot", inputPath, outputPath);
 }

@@ -112,6 +112,12 @@ cv::Mat OpenCVEnsureGray(const cv::Mat &src);
 /// True when `k` is a positive odd integer (valid kernel size).
 BOOL OpenCVOddPositive(int k);
 
+/// Apply every op in the JSON-decoded `ops` array to `current` in place, in
+/// order. Used by composite ops (e.g. `applyMask`) that run a sub-pipeline on a
+/// copy of the current image. Returns `NO` and sets `*error` on the first
+/// failing op.
+BOOL OpenCVApplyOps(NSArray *ops, cv::Mat &current, NSError **error);
+
 // --- Self-registration macro -------------------------------------------------
 //
 // Usage (in an op's .mm file):

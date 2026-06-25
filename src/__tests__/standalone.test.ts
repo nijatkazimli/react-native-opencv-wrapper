@@ -17,6 +17,9 @@ import {
   cvtColor,
   inRange,
   filter2D,
+  adaptiveThreshold,
+  morphologyEx,
+  bitwiseNot,
   standaloneOps,
   runStandaloneOp,
 } from "../standalone";
@@ -195,6 +198,66 @@ describe("pipeline-backed standalone wrappers", () => {
         ],
       },
     ]);
+  });
+
+  it("adaptiveThreshold defaults method and thresholdType", async () => {
+    await adaptiveThreshold("/in.png", "/out.png", 255, 11, 2);
+    expect(opsOf()).toEqual([
+      {
+        type: "adaptiveThreshold",
+        maxValue: 255,
+        blockSize: 11,
+        c: 2,
+        method: "gaussian",
+        thresholdType: "binary",
+      },
+    ]);
+  });
+
+  it("adaptiveThreshold forwards explicit method and thresholdType", async () => {
+    await adaptiveThreshold(
+      "/in.png",
+      "/out.png",
+      200,
+      9,
+      -3,
+      "mean",
+      "binaryInv",
+    );
+    expect(opsOf()).toEqual([
+      {
+        type: "adaptiveThreshold",
+        maxValue: 200,
+        blockSize: 9,
+        c: -3,
+        method: "mean",
+        thresholdType: "binaryInv",
+      },
+    ]);
+  });
+
+  it("morphologyEx defaults iterations to 1", async () => {
+    await morphologyEx("/in.png", "/out.png", "open", 3);
+    expect(opsOf()).toEqual([
+      { type: "morphologyEx", operation: "open", kernelSize: 3, iterations: 1 },
+    ]);
+  });
+
+  it("morphologyEx forwards an explicit iterations count", async () => {
+    await morphologyEx("/in.png", "/out.png", "close", 5, 2);
+    expect(opsOf()).toEqual([
+      {
+        type: "morphologyEx",
+        operation: "close",
+        kernelSize: 5,
+        iterations: 2,
+      },
+    ]);
+  });
+
+  it("bitwiseNot runs a single bitwiseNot op", async () => {
+    await bitwiseNot("/in.png", "/out.png");
+    expect(opsOf()).toEqual([{ type: "bitwiseNot" }]);
   });
 });
 
