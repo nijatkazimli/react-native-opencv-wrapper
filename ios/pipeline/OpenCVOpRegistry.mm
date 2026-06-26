@@ -111,6 +111,32 @@ static NSString *OpenCVStripDataURI(NSString *value) {
     return value;
 }
 
+Mat OpenCVDecodeImageArg(NSString *value, NSError **error) {
+    if (![value isKindOfClass:[NSString class]] || value.length == 0) {
+        if (error) *error = OpenCVMakeError(@"image source must be a non-empty string");
+        return Mat();
+    }
+    // Try to read it as a filesystem path first (tolerating a file:// scheme).
+    NSString *path = [value hasPrefix:@"file://"] ? [value substringFromIndex:7] : value;
+    Mat m = cv::imread(OpenCVPath(path), cv::IMREAD_COLOR);
+    if (!m.empty()) {
+        return m;
+    }
+    // Otherwise treat it as a (data-URI or raw) base64 payload.
+    NSData *bytes = [[NSData alloc] initWithBase64EncodedString:OpenCVStripDataURI(value)
+                                                        options:NSDataBase64DecodingIgnoreUnknownCharacters];
+    if (bytes.length > 0) {
+        std::vector<uchar> buf((const uchar *)bytes.bytes,
+                               (const uchar *)bytes.bytes + bytes.length);
+        m = cv::imdecode(buf, cv::IMREAD_COLOR);
+        if (!m.empty()) {
+            return m;
+        }
+    }
+    if (error) *error = OpenCVMakeCodedError(OpenCVErrorIO, @"Could not decode image source");
+    return Mat();
+}
+
 /// Decode the source image described by `input` (a `path` or `base64`
 /// descriptor) into a BGR `Mat`. Returns an empty Mat and sets `*error` on
 /// failure.

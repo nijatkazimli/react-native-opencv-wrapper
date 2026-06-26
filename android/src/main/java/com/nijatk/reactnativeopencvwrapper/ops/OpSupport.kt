@@ -71,6 +71,18 @@ object OpSupport {
   }
 
   /**
+   * Decode an image supplied as either a filesystem path (optionally `file://`)
+   * or a (data-URI/raw) base64 string. Tries `imread` first, then base64.
+   */
+  fun decodeImageArg(value: String, flag: Int): Mat {
+    val path = if (value.startsWith("file://")) value.substring(7) else value
+    val fromPath = Imgcodecs.imread(path, flag)
+    if (!fromPath.empty()) return fromPath
+    fromPath.release()
+    return decodeBase64OrThrow(value, flag)
+  }
+
+  /**
    * Encode `mat` to base64 using the encoder selected by `ext` (e.g. `.png`),
    * or throw if it cannot be encoded.
    */

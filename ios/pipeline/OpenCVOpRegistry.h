@@ -120,6 +120,11 @@ cv::Scalar OpenCVColorScalar(NSArray *color, cv::Scalar fallback);
 /// `antialias` param; defaults to `YES` when absent.
 BOOL OpenCVAntialias(NSDictionary *params);
 
+/// Decode an image supplied as either a filesystem path (optionally `file://`)
+/// or a (data-URI or raw) base64 string. Tries `imread` first, then base64.
+/// Returns an empty `cv::Mat` and sets `*error` on failure.
+cv::Mat OpenCVDecodeImageArg(NSString *value, NSError **error);
+
 /// Apply every op in the JSON-decoded `ops` array to `current` in place, in
 /// order. Used by composite ops (e.g. `applyMask`) that run a sub-pipeline on a
 /// copy of the current image. Returns `NO` and sets `*error` on the first
