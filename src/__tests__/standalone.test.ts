@@ -25,6 +25,16 @@ import {
   drawLine,
   putText,
   drawPolygon,
+  warpPerspective,
+  warpAffine,
+  blend,
+  equalizeHist,
+  clahe,
+  bilateralFilter,
+  copyMakeBorder,
+  normalize,
+  convertScaleAbs,
+  lut,
   standaloneOps,
   runStandaloneOp,
 } from "../standalone";
@@ -460,6 +470,274 @@ describe("pipeline-backed standalone wrappers", () => {
         closed: false,
         fillColor: [12, 13, 14],
         antialias: false,
+      },
+    ]);
+  });
+
+  it("warpPerspective serializes only the points when size is omitted", async () => {
+    await warpPerspective(
+      "/in.png",
+      "/out.png",
+      [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ],
+      [
+        [0, 0],
+        [20, 0],
+        [20, 20],
+        [0, 20],
+      ],
+    );
+    expect(opsOf()).toEqual([
+      {
+        type: "warpPerspective",
+        srcPoints: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+        dstPoints: [
+          [0, 0],
+          [20, 0],
+          [20, 20],
+          [0, 20],
+        ],
+      },
+    ]);
+  });
+
+  it("warpPerspective forwards an explicit output size", async () => {
+    await warpPerspective(
+      "/in.png",
+      "/out.png",
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+      [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2],
+      ],
+      200,
+      100,
+    );
+    expect(opsOf()).toEqual([
+      {
+        type: "warpPerspective",
+        srcPoints: [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+        ],
+        dstPoints: [
+          [0, 0],
+          [2, 0],
+          [2, 2],
+          [0, 2],
+        ],
+        width: 200,
+        height: 100,
+      },
+    ]);
+  });
+
+  it("warpAffine serializes only the points when size is omitted", async () => {
+    await warpAffine(
+      "/in.png",
+      "/out.png",
+      [
+        [0, 0],
+        [10, 0],
+        [0, 10],
+      ],
+      [
+        [0, 0],
+        [20, 0],
+        [0, 20],
+      ],
+    );
+    expect(opsOf()).toEqual([
+      {
+        type: "warpAffine",
+        srcPoints: [
+          [0, 0],
+          [10, 0],
+          [0, 10],
+        ],
+        dstPoints: [
+          [0, 0],
+          [20, 0],
+          [0, 20],
+        ],
+      },
+    ]);
+  });
+
+  it("warpAffine forwards an explicit output size", async () => {
+    await warpAffine(
+      "/in.png",
+      "/out.png",
+      [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+      ],
+      [
+        [0, 0],
+        [2, 0],
+        [0, 2],
+      ],
+      300,
+      150,
+    );
+    expect(opsOf()).toEqual([
+      {
+        type: "warpAffine",
+        srcPoints: [
+          [0, 0],
+          [1, 0],
+          [0, 1],
+        ],
+        dstPoints: [
+          [0, 0],
+          [2, 0],
+          [0, 2],
+        ],
+        width: 300,
+        height: 150,
+      },
+    ]);
+  });
+
+  it("blend defaults alpha, beta, and gamma", async () => {
+    await blend("/in.png", "/out.png", "/overlay.png");
+    expect(opsOf()).toEqual([
+      {
+        type: "blend",
+        source: "/overlay.png",
+        alpha: 0.5,
+        beta: 0.5,
+        gamma: 0,
+      },
+    ]);
+  });
+
+  it("blend forwards explicit alpha, beta, and gamma", async () => {
+    await blend("/in.png", "/out.png", "/overlay.png", 0.7, 0.3, 5);
+    expect(opsOf()).toEqual([
+      {
+        type: "blend",
+        source: "/overlay.png",
+        alpha: 0.7,
+        beta: 0.3,
+        gamma: 5,
+      },
+    ]);
+  });
+
+  it("equalizeHist runs a single equalizeHist op", async () => {
+    await equalizeHist("/in.png", "/out.png");
+    expect(opsOf()).toEqual([{ type: "equalizeHist" }]);
+  });
+
+  it("clahe defaults clipLimit and tileGridSize", async () => {
+    await clahe("/in.png", "/out.png");
+    expect(opsOf()).toEqual([{ type: "clahe", clipLimit: 2, tileGridSize: 8 }]);
+  });
+
+  it("clahe forwards explicit clipLimit and tileGridSize", async () => {
+    await clahe("/in.png", "/out.png", 3, 16);
+    expect(opsOf()).toEqual([
+      { type: "clahe", clipLimit: 3, tileGridSize: 16 },
+    ]);
+  });
+
+  it("bilateralFilter defaults diameter and sigmas", async () => {
+    await bilateralFilter("/in.png", "/out.png");
+    expect(opsOf()).toEqual([
+      { type: "bilateralFilter", diameter: 9, sigmaColor: 75, sigmaSpace: 75 },
+    ]);
+  });
+
+  it("bilateralFilter forwards explicit diameter and sigmas", async () => {
+    await bilateralFilter("/in.png", "/out.png", 5, 50, 60);
+    expect(opsOf()).toEqual([
+      { type: "bilateralFilter", diameter: 5, sigmaColor: 50, sigmaSpace: 60 },
+    ]);
+  });
+
+  it("copyMakeBorder defaults borderType and color", async () => {
+    await copyMakeBorder("/in.png", "/out.png", 1, 2, 3, 4);
+    expect(opsOf()).toEqual([
+      {
+        type: "copyMakeBorder",
+        top: 1,
+        bottom: 2,
+        left: 3,
+        right: 4,
+        borderType: "constant",
+        color: [0, 0, 0],
+      },
+    ]);
+  });
+
+  it("copyMakeBorder forwards explicit borderType and color", async () => {
+    await copyMakeBorder("/in.png", "/out.png", 1, 2, 3, 4, {
+      borderType: "reflect101",
+      color: [10, 20, 30],
+    });
+    expect(opsOf()).toEqual([
+      {
+        type: "copyMakeBorder",
+        top: 1,
+        bottom: 2,
+        left: 3,
+        right: 4,
+        borderType: "reflect101",
+        color: [10, 20, 30],
+      },
+    ]);
+  });
+
+  it("normalize defaults alpha, beta, and normType", async () => {
+    await normalize("/in.png", "/out.png");
+    expect(opsOf()).toEqual([
+      { type: "normalize", alpha: 0, beta: 255, normType: "minmax" },
+    ]);
+  });
+
+  it("normalize forwards explicit alpha, beta, and normType", async () => {
+    await normalize("/in.png", "/out.png", 10, 200, "l2");
+    expect(opsOf()).toEqual([
+      { type: "normalize", alpha: 10, beta: 200, normType: "l2" },
+    ]);
+  });
+
+  it("convertScaleAbs defaults alpha and beta", async () => {
+    await convertScaleAbs("/in.png", "/out.png");
+    expect(opsOf()).toEqual([{ type: "convertScaleAbs", alpha: 1, beta: 0 }]);
+  });
+
+  it("convertScaleAbs forwards explicit alpha and beta", async () => {
+    await convertScaleAbs("/in.png", "/out.png", 2, 7);
+    expect(opsOf()).toEqual([{ type: "convertScaleAbs", alpha: 2, beta: 7 }]);
+  });
+
+  it("lut evaluates a mapping function over 0..255", async () => {
+    await lut("/in.png", "/out.png", (x) => 255 - x);
+    expect(opsOf()).toEqual([
+      {
+        type: "lut",
+        table: Array.from({ length: 256 }, (_unused, x) => 255 - x),
       },
     ]);
   });

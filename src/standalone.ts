@@ -21,6 +21,11 @@ import type { DrawCircleOptions } from "./ops/drawCircle";
 import type { DrawLineOptions } from "./ops/drawLine";
 import type { PutTextOptions } from "./ops/putText";
 import type { Point2D, DrawPolygonOptions } from "./ops/drawPolygon";
+import type { Quad } from "./ops/warpPerspective";
+import type { Triangle } from "./ops/warpAffine";
+import type { CopyMakeBorderOptions } from "./ops/copyMakeBorder";
+import type { NormType } from "./ops/normalize";
+import type { LutMap } from "./ops/lut";
 import "./ops";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
@@ -368,4 +373,187 @@ export function drawPolygon(
   options?: DrawPolygonOptions,
 ): Promise<string> {
   return runStandaloneOp("drawPolygon", inputPath, outputPath, points, options);
+}
+
+/**
+ * Standalone wrapper for `warpPerspective`: map four `srcPoints` onto four
+ * `dstPoints` (e.g. deskew a document). `width`/`height` default to the input
+ * size.
+ */
+export function warpPerspective(
+  inputPath: string,
+  outputPath: string,
+  srcPoints: Quad,
+  dstPoints: Quad,
+  width?: number,
+  height?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "warpPerspective",
+    inputPath,
+    outputPath,
+    srcPoints,
+    dstPoints,
+    width,
+    height,
+  );
+}
+
+/**
+ * Standalone wrapper for `warpAffine`: map three `srcPoints` onto three
+ * `dstPoints`. `width`/`height` default to the input size.
+ */
+export function warpAffine(
+  inputPath: string,
+  outputPath: string,
+  srcPoints: Triangle,
+  dstPoints: Triangle,
+  width?: number,
+  height?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "warpAffine",
+    inputPath,
+    outputPath,
+    srcPoints,
+    dstPoints,
+    width,
+    height,
+  );
+}
+
+/**
+ * Standalone wrapper for `blend`: `out = alpha * input + beta * source + gamma`.
+ * `source` is a file path or base64 string, decoded and resized to match.
+ */
+export function blend(
+  inputPath: string,
+  outputPath: string,
+  source: string,
+  alpha?: number,
+  beta?: number,
+  gamma?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "blend",
+    inputPath,
+    outputPath,
+    source,
+    alpha,
+    beta,
+    gamma,
+  );
+}
+
+/**
+ * Standalone wrapper for `equalizeHist`: global histogram equalization. The
+ * image is grayscaled first, so the result is single-channel.
+ */
+export function equalizeHist(
+  inputPath: string,
+  outputPath: string,
+): Promise<string> {
+  return runStandaloneOp("equalizeHist", inputPath, outputPath);
+}
+
+/**
+ * Standalone wrapper for `clahe`: contrast-limited adaptive histogram
+ * equalization. The image is grayscaled first, so the result is single-channel.
+ */
+export function clahe(
+  inputPath: string,
+  outputPath: string,
+  clipLimit?: number,
+  tileGridSize?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "clahe",
+    inputPath,
+    outputPath,
+    clipLimit,
+    tileGridSize,
+  );
+}
+
+/** Standalone wrapper for `bilateralFilter`: edge-preserving smoothing. */
+export function bilateralFilter(
+  inputPath: string,
+  outputPath: string,
+  diameter?: number,
+  sigmaColor?: number,
+  sigmaSpace?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "bilateralFilter",
+    inputPath,
+    outputPath,
+    diameter,
+    sigmaColor,
+    sigmaSpace,
+  );
+}
+
+/** Standalone wrapper for `copyMakeBorder`: pad an image by the given margins. */
+export function copyMakeBorder(
+  inputPath: string,
+  outputPath: string,
+  top: number,
+  bottom: number,
+  left: number,
+  right: number,
+  options?: CopyMakeBorderOptions,
+): Promise<string> {
+  return runStandaloneOp(
+    "copyMakeBorder",
+    inputPath,
+    outputPath,
+    top,
+    bottom,
+    left,
+    right,
+    options,
+  );
+}
+
+/** Standalone wrapper for `normalize`: rescale pixel intensities. */
+export function normalize(
+  inputPath: string,
+  outputPath: string,
+  alpha?: number,
+  beta?: number,
+  normType?: NormType,
+): Promise<string> {
+  return runStandaloneOp(
+    "normalize",
+    inputPath,
+    outputPath,
+    alpha,
+    beta,
+    normType,
+  );
+}
+
+/**
+ * Standalone wrapper for `convertScaleAbs`: brightness/contrast as
+ * `|alpha * input + beta|`, saturated to 8-bit.
+ */
+export function convertScaleAbs(
+  inputPath: string,
+  outputPath: string,
+  alpha?: number,
+  beta?: number,
+): Promise<string> {
+  return runStandaloneOp("convertScaleAbs", inputPath, outputPath, alpha, beta);
+}
+
+/**
+ * Standalone wrapper for `lut`: per-pixel intensity remap (`cv::LUT`). `map` is
+ * a function `(x) => y` evaluated over `x = 0..255` or a 256-entry output table.
+ */
+export function lut(
+  inputPath: string,
+  outputPath: string,
+  map: LutMap,
+): Promise<string> {
+  return runStandaloneOp("lut", inputPath, outputPath, map);
 }

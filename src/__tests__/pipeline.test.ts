@@ -248,6 +248,40 @@ describe("Pipeline builder", () => {
         [10, 0],
         [10, 10],
       ])
+      .warpPerspective(
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+        [
+          [0, 0],
+          [20, 0],
+          [20, 20],
+          [0, 20],
+        ],
+      )
+      .warpAffine(
+        [
+          [0, 0],
+          [10, 0],
+          [0, 10],
+        ],
+        [
+          [0, 0],
+          [20, 0],
+          [0, 20],
+        ],
+      )
+      .blend("/overlay.png")
+      .equalizeHist()
+      .clahe()
+      .bilateralFilter()
+      .copyMakeBorder(1, 2, 3, 4)
+      .normalize()
+      .convertScaleAbs()
+      .lut((x) => 255 - x)
       .applyMask((m) =>
         m.cvtColor("BGR2HSV").inRange([35, 60, 60], [85, 255, 255]),
       )
@@ -342,6 +376,59 @@ describe("Pipeline builder", () => {
         thickness: 2,
         closed: true,
         antialias: true,
+      },
+      {
+        type: "warpPerspective",
+        srcPoints: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+        dstPoints: [
+          [0, 0],
+          [20, 0],
+          [20, 20],
+          [0, 20],
+        ],
+      },
+      {
+        type: "warpAffine",
+        srcPoints: [
+          [0, 0],
+          [10, 0],
+          [0, 10],
+        ],
+        dstPoints: [
+          [0, 0],
+          [20, 0],
+          [0, 20],
+        ],
+      },
+      {
+        type: "blend",
+        source: "/overlay.png",
+        alpha: 0.5,
+        beta: 0.5,
+        gamma: 0,
+      },
+      { type: "equalizeHist" },
+      { type: "clahe", clipLimit: 2, tileGridSize: 8 },
+      { type: "bilateralFilter", diameter: 9, sigmaColor: 75, sigmaSpace: 75 },
+      {
+        type: "copyMakeBorder",
+        top: 1,
+        bottom: 2,
+        left: 3,
+        right: 4,
+        borderType: "constant",
+        color: [0, 0, 0],
+      },
+      { type: "normalize", alpha: 0, beta: 255, normType: "minmax" },
+      { type: "convertScaleAbs", alpha: 1, beta: 0 },
+      {
+        type: "lut",
+        table: Array.from({ length: 256 }, (_unused, x) => 255 - x),
       },
       {
         type: "applyMask",
@@ -482,6 +569,70 @@ describe("Pipeline builder", () => {
         antialias: false,
       },
     ]);
+  });
+
+  it("passes explicit primitive-op parameters through", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .blend("/overlay.png", 0.7, 0.3, 5)
+      .clahe(3, 16)
+      .bilateralFilter(5, 50, 60)
+      .copyMakeBorder(1, 2, 3, 4, {
+        borderType: "reflect101",
+        color: [10, 20, 30],
+      })
+      .normalize(10, 200, "l2")
+      .convertScaleAbs(2, 7)
+      .run();
+
+    expect(ioCall().ops).toEqual([
+      {
+        type: "blend",
+        source: "/overlay.png",
+        alpha: 0.7,
+        beta: 0.3,
+        gamma: 5,
+      },
+      { type: "clahe", clipLimit: 3, tileGridSize: 16 },
+      { type: "bilateralFilter", diameter: 5, sigmaColor: 50, sigmaSpace: 60 },
+      {
+        type: "copyMakeBorder",
+        top: 1,
+        bottom: 2,
+        left: 3,
+        right: 4,
+        borderType: "reflect101",
+        color: [10, 20, 30],
+      },
+      { type: "normalize", alpha: 10, beta: 200, normType: "l2" },
+      { type: "convertScaleAbs", alpha: 2, beta: 7 },
+    ]);
+  });
+
+  it("lut accepts a precomputed 256-entry table and clamps out-of-range values", async () => {
+    const table = Array.from({ length: 256 }, (_unused, x) => x - 5);
+    await pipeline().input("/in.png").output("/out.png").lut(table).run();
+
+    const expected = table.map((value) => Math.max(0, Math.min(255, value)));
+    expect(ioCall().ops).toEqual([{ type: "lut", table: expected }]);
+  });
+
+  it("lut rounds fractional outputs and rejects tables that are not 256 long", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .lut((x) => x / 2 + 0.5)
+      .run();
+
+    const expected = Array.from({ length: 256 }, (_unused, x) =>
+      Math.round(x / 2 + 0.5),
+    );
+    expect(ioCall().ops).toEqual([{ type: "lut", table: expected }]);
+
+    expect(() =>
+      pipeline().input("/in.png").output("/out.png").lut([0, 1, 2]),
+    ).toThrow("lut table must have exactly 256 entries");
   });
 });
 
