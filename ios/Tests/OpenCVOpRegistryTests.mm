@@ -1267,4 +1267,362 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqual([parsed[@"corners"] count], 0u);
 }
 
+#pragma mark - Geometric & photometric ops
+
+- (void)testWarpPerspectiveIdentityPreservesImage {
+  NSString *input = [self writeSourceImage:@"warpp-in.png"];
+  NSString *output = [self outputPath:@"warpp-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"warpPerspective\",\"srcPoints\":[[0,0],[40,0],[40,60],[0,60]],\"dstPoints\":[[0,0],[40,0],[40,60],[0,60]],\"width\":40,\"height\":60}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testWarpPerspectiveWrongPointCountFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"warpp-bad-in.png"];
+  NSString *output = [self outputPath:@"warpp-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"warpPerspective\",\"srcPoints\":[[0,0],[40,0],[40,60]],\"dstPoints\":[[0,0],[40,0],[40,60]]}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testWarpAffineIdentityPreservesImage {
+  NSString *input = [self writeSourceImage:@"warpa-in.png"];
+  NSString *output = [self outputPath:@"warpa-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"warpAffine\",\"srcPoints\":[[0,0],[40,0],[0,60]],\"dstPoints\":[[0,0],[40,0],[0,60]],\"width\":40,\"height\":60}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testBlendWithIdenticalSourcePreservesImage {
+  NSString *input = [self writeSourceImage:@"blend-in.png"];
+  NSString *output = [self outputPath:@"blend-out.png"];
+  NSString *source = [self sourceBase64:@".png"];
+
+  NSString *opsJson = [NSString stringWithFormat:
+      @"[{\"type\":\"blend\",\"source\":\"%@\",\"alpha\":0.5,\"beta\":0.5,\"gamma\":0}]",
+      source];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:opsJson
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  // 0.5 * (10,20,30) + 0.5 * (10,20,30) == (10,20,30).
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testEqualizeHistProducesSingleChannelImage {
+  NSString *input = [self writeSourceImage:@"equalize-in.png"];
+  NSString *output = [self outputPath:@"equalize-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"equalizeHist\"}]"
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testClaheProducesSingleChannelImage {
+  NSString *input = [self writeSourceImage:@"clahe-in.png"];
+  NSString *output = [self outputPath:@"clahe-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"clahe\",\"clipLimit\":2,\"tileGridSize\":8}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testBilateralFilterPreservesShape {
+  NSString *input = [self writeSourceImage:@"bilateral-in.png"];
+  NSString *output = [self outputPath:@"bilateral-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"bilateralFilter\",\"diameter\":5,\"sigmaColor\":50,\"sigmaSpace\":50}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  // A uniform region is unchanged by edge-preserving smoothing.
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testCopyMakeBorderEnlargesImage {
+  NSString *input = [self writeSourceImage:@"border-in.png"];
+  NSString *output = [self outputPath:@"border-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"copyMakeBorder\",\"top\":5,\"bottom\":5,\"left\":5,\"right\":5,\"borderType\":\"constant\",\"color\":[0,0,0]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth + 10);
+  XCTAssertEqual(result.rows, kHeight + 10);
+  // The constant border is black; the inner region keeps the source pixel.
+  cv::Vec3b border = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(border[0], 0);
+  XCTAssertEqual(border[1], 0);
+  XCTAssertEqual(border[2], 0);
+  cv::Vec3b inner = result.at<cv::Vec3b>(30, 25);
+  XCTAssertEqual(inner[0], 10);
+  XCTAssertEqual(inner[1], 20);
+  XCTAssertEqual(inner[2], 30);
+}
+
+- (void)testNormalizePreservesShape {
+  NSString *input = [self writeSourceImage:@"normalize-in.png"];
+  NSString *output = [self outputPath:@"normalize-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"normalize\",\"alpha\":0,\"beta\":255,\"normType\":\"minmax\"}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testConvertScaleAbsScalesPixelValues {
+  NSString *input = [self writeSourceImage:@"convert-in.png"];
+  NSString *output = [self outputPath:@"convert-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"convertScaleAbs\",\"alpha\":2,\"beta\":0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  // |2 * (10,20,30) + 0| == (20,40,60).
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 20);
+  XCTAssertEqual(pixel[1], 40);
+  XCTAssertEqual(pixel[2], 60);
+}
+
+- (void)testLutAppliesInverseTable {
+  NSString *input = [self writeSourceImage:@"lut-in.png"];
+  NSString *output = [self outputPath:@"lut-out.png"];
+
+  NSMutableString *table = [NSMutableString stringWithString:@"["];
+  for (int i = 0; i < 256; i++) {
+    if (i > 0) [table appendString:@","];
+    [table appendFormat:@"%d", 255 - i];
+  }
+  [table appendString:@"]"];
+  NSString *opsJson =
+      [NSString stringWithFormat:@"[{\"type\":\"lut\",\"table\":%@}]", table];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:opsJson
+                                             error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  // table[x] = 255 - x maps (10,20,30) -> (245,235,225).
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 245);
+  XCTAssertEqual(pixel[1], 235);
+  XCTAssertEqual(pixel[2], 225);
+}
+
+#pragma mark - Gradient ops
+
+- (void)testSobelOnUniformImageProducesZeros {
+  NSString *input = [self writeSourceImage:@"sobel-in.png"];
+  NSString *output = [self outputPath:@"sobel-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"sobel\",\"dx\":1,\"dy\":0,\"ksize\":3,\"scale\":1,\"delta\":0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  // A flat image has no gradient, so the absolute derivative is zero.
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 0);
+  XCTAssertEqual(pixel[1], 0);
+  XCTAssertEqual(pixel[2], 0);
+}
+
+- (void)testSobelEvenKsizeFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"sobel-bad-in.png"];
+  NSString *output = [self outputPath:@"sobel-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"sobel\",\"dx\":1,\"dy\":0,\"ksize\":4}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testScharrOnUniformImageProducesZeros {
+  NSString *input = [self writeSourceImage:@"scharr-in.png"];
+  NSString *output = [self outputPath:@"scharr-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"scharr\",\"dx\":0,\"dy\":1,\"scale\":1,\"delta\":0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 0);
+  XCTAssertEqual(pixel[1], 0);
+  XCTAssertEqual(pixel[2], 0);
+}
+
+- (void)testScharrInvalidDerivativeOrderFailsWithInvalidArgument {
+  NSString *input = [self writeSourceImage:@"scharr-bad-in.png"];
+  NSString *output = [self outputPath:@"scharr-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"scharr\",\"dx\":1,\"dy\":1}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testLaplacianOnUniformImageProducesZeros {
+  NSString *input = [self writeSourceImage:@"laplacian-in.png"];
+  NSString *output = [self outputPath:@"laplacian-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"laplacian\",\"ksize\":3,\"scale\":1,\"delta\":0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 0);
+  XCTAssertEqual(pixel[1], 0);
+  XCTAssertEqual(pixel[2], 0);
+}
+
+- (void)testSepFilter2DOnUniformImageWithZeroSumKernel {
+  NSString *input = [self writeSourceImage:@"sep-in.png"];
+  NSString *output = [self outputPath:@"sep-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"sepFilter2D\",\"kernelX\":[1,0,-1],\"kernelY\":[1,2,1],\"delta\":0}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"pipeline failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  // kernelX = [1,0,-1] sums to zero, so a flat image yields zeros.
+  cv::Vec3b pixel = result.at<cv::Vec3b>(30, 20);
+  XCTAssertEqual(pixel[0], 0);
+  XCTAssertEqual(pixel[1], 0);
+  XCTAssertEqual(pixel[2], 0);
+}
+
 @end
