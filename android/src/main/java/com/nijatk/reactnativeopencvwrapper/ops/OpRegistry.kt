@@ -49,6 +49,10 @@ object OpRegistry {
     NormalizeOp,
     ConvertScaleAbsOp,
     LutOp,
+    SobelOp,
+    ScharrOp,
+    LaplacianOp,
+    SepFilter2DOp,
     DebugOp,
     ScanDocumentOp,
   ).associateBy { it.name }

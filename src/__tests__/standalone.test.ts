@@ -35,6 +35,10 @@ import {
   normalize,
   convertScaleAbs,
   lut,
+  sobel,
+  scharr,
+  laplacian,
+  sepFilter2D,
   standaloneOps,
   runStandaloneOp,
 } from "../standalone";
@@ -738,6 +742,72 @@ describe("pipeline-backed standalone wrappers", () => {
       {
         type: "lut",
         table: Array.from({ length: 256 }, (_unused, x) => 255 - x),
+      },
+    ]);
+  });
+
+  it("sobel defaults ksize, scale, and delta", async () => {
+    await sobel("/in.png", "/out.png", 1, 0);
+    expect(opsOf()).toEqual([
+      { type: "sobel", dx: 1, dy: 0, ksize: 3, scale: 1, delta: 0 },
+    ]);
+  });
+
+  it("sobel forwards explicit ksize, scale, and delta", async () => {
+    await sobel("/in.png", "/out.png", 2, 1, 5, 2, 10);
+    expect(opsOf()).toEqual([
+      { type: "sobel", dx: 2, dy: 1, ksize: 5, scale: 2, delta: 10 },
+    ]);
+  });
+
+  it("scharr defaults scale and delta", async () => {
+    await scharr("/in.png", "/out.png", 0, 1);
+    expect(opsOf()).toEqual([
+      { type: "scharr", dx: 0, dy: 1, scale: 1, delta: 0 },
+    ]);
+  });
+
+  it("scharr forwards explicit scale and delta", async () => {
+    await scharr("/in.png", "/out.png", 1, 0, 3, 4);
+    expect(opsOf()).toEqual([
+      { type: "scharr", dx: 1, dy: 0, scale: 3, delta: 4 },
+    ]);
+  });
+
+  it("laplacian defaults ksize, scale, and delta", async () => {
+    await laplacian("/in.png", "/out.png");
+    expect(opsOf()).toEqual([
+      { type: "laplacian", ksize: 1, scale: 1, delta: 0 },
+    ]);
+  });
+
+  it("laplacian forwards explicit ksize, scale, and delta", async () => {
+    await laplacian("/in.png", "/out.png", 3, 2, 5);
+    expect(opsOf()).toEqual([
+      { type: "laplacian", ksize: 3, scale: 2, delta: 5 },
+    ]);
+  });
+
+  it("sepFilter2D defaults delta", async () => {
+    await sepFilter2D("/in.png", "/out.png", [1, 0, -1], [1, 2, 1]);
+    expect(opsOf()).toEqual([
+      {
+        type: "sepFilter2D",
+        kernelX: [1, 0, -1],
+        kernelY: [1, 2, 1],
+        delta: 0,
+      },
+    ]);
+  });
+
+  it("sepFilter2D forwards an explicit delta", async () => {
+    await sepFilter2D("/in.png", "/out.png", [1, 2, 1], [1, 0, -1], 7);
+    expect(opsOf()).toEqual([
+      {
+        type: "sepFilter2D",
+        kernelX: [1, 2, 1],
+        kernelY: [1, 0, -1],
+        delta: 7,
       },
     ]);
   });

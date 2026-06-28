@@ -139,6 +139,10 @@ URIs), and every async call resolves with the output path.
 | Convert color      | `cvtColor(code)`                                                     | `code`: `"BGR2GRAY"` \| `"GRAY2BGR"` \| `"BGR2RGB"` \| `"RGB2BGR"` \| `"BGR2HSV"` \| `"HSV2BGR"` \| `"BGR2HLS"` \| `"HLS2BGR"` \| `"BGR2Lab"` \| `"Lab2BGR"` \| `"BGR2YCrCb"` \| `"YCrCb2BGR"`                                                                                   |
 | In-range mask      | `inRange(lower, upper)`                                              | `lower`/`upper`: per-channel bounds (1–4 numbers, same length as the image's channel count); returns a single-channel binary mask                                                                                                                                                |
 | Filter 2D          | `filter2D(kernel)`                                                   | `kernel`: a non-empty 2D number array (equal-length rows); arbitrary convolution that keeps the source depth/channels                                                                                                                                                            |
+| Separable filter   | `sepFilter2D(kernelX, kernelY, delta?)`                              | apply 1D `kernelX` across rows and `kernelY` down columns (efficient rank-1 convolution); make one kernel `[1]` for a horizontal/vertical-only pass; `delta` added per pixel (default `0`); keeps source depth/channels                                                          |
+| Sobel              | `sobel(dx, dy, ksize?, scale?, delta?)`                              | directional edge derivative; `dx`/`dy`: derivative order (`dx + dy ≥ 1`); `ksize`: odd `1 \| 3 \| 5 \| 7` (default `3`); `scale`/`delta` default `1`/`0`; returned as an absolute 8-bit image (`gray()` first for single-channel edges)                                          |
+| Scharr             | `scharr(dx, dy, scale?, delta?)`                                     | more accurate 3×3 first-order derivative; exactly one of `dx`/`dy` is `1`, the other `0`; `scale`/`delta` default `1`/`0`; returned as an absolute 8-bit image                                                                                                                   |
+| Laplacian          | `laplacian(ksize?, scale?, delta?)`                                  | isotropic second-derivative edge detector; `ksize`: odd `1 \| 3 \| 5 \| 7` (default `1`); `scale`/`delta` default `1`/`0`; returned as an absolute 8-bit image                                                                                                                   |
 | Adaptive threshold | `adaptiveThreshold(maxValue, blockSize, c, method?, thresholdType?)` | `blockSize`: odd int ≥ 3; `c`: constant subtracted; `method`: `"mean"` \| `"gaussian"` (default `"gaussian"`); `thresholdType`: `"binary"` \| `"binaryInv"` (default `"binary"`); grayscaled first                                                                               |
 | Morphology         | `morphologyEx(operation, kernelSize, iterations?)`                   | `operation`: `"open"` \| `"close"` \| `"gradient"` \| `"tophat"` \| `"blackhat"`; `kernelSize`: positive odd int; `iterations`: default `1`                                                                                                                                      |
 | Bitwise not        | `bitwiseNot()`                                                       | inverts every pixel (`0 ↔ 255` on a mask)                                                                                                                                                                                                                                        |
@@ -196,6 +200,20 @@ import {
   drawLine,
   putText,
   drawPolygon,
+  warpPerspective,
+  warpAffine,
+  blend,
+  equalizeHist,
+  clahe,
+  bilateralFilter,
+  copyMakeBorder,
+  normalize,
+  convertScaleAbs,
+  lut,
+  sobel,
+  scharr,
+  laplacian,
+  sepFilter2D,
 } from "@nijatk/react-native-opencv-wrapper";
 
 const input = "/abs/path/input.png";
@@ -238,6 +256,54 @@ await drawPolygon(input, output, [
   [80, 90],
   [15, 80],
 ]); // outline a quad
+
+// Geometric & photometric ops
+await warpPerspective(
+  input,
+  output,
+  [
+    [0, 0],
+    [100, 0],
+    [100, 100],
+    [0, 100],
+  ], // src quad
+  [
+    [10, 0],
+    [90, 0],
+    [100, 100],
+    [0, 100],
+  ], // dst quad
+); // deskew / map a quad onto a quad (output size defaults to input)
+await warpAffine(
+  input,
+  output,
+  [
+    [0, 0],
+    [100, 0],
+    [0, 100],
+  ], // src triangle
+  [
+    [10, 0],
+    [110, 0],
+    [10, 100],
+  ], // dst triangle → shear
+);
+await blend(input, output, "/abs/overlay.png", 0.7, 0.3, 0); // 70% input + 30% overlay
+await equalizeHist(input, output); // global contrast (grayscale result)
+await clahe(input, output, 3, 8); // adaptive contrast, clip 3, 8×8 tiles
+await bilateralFilter(input, output, 9, 75, 75); // edge-preserving smooth
+await copyMakeBorder(input, output, 10, 10, 10, 10, {
+  borderType: "reflect101",
+}); // pad 10px on every side
+await normalize(input, output, 0, 255, "minmax"); // stretch to full 0–255 range
+await convertScaleAbs(input, output, 1.2, 10); // brightness/contrast: |1.2·x + 10|
+await lut(input, output, (x) => 255 - x); // invert via lookup table
+
+// Gradients & edges
+await sobel(input, output, 1, 0, 3); // ∂/∂x with a 3×3 kernel (absolute)
+await scharr(input, output, 0, 1); // ∂/∂y, sharper 3×3 derivative
+await laplacian(input, output, 3); // second-derivative edges, ksize 3
+await sepFilter2D(input, output, [1, 0, -1], [1, 2, 1]); // separable Sobel-X
 ```
 
 > `toGray(input, output)` is kept as an alias of `gray(input, output)`.

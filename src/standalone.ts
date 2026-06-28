@@ -26,6 +26,7 @@ import type { Triangle } from "./ops/warpAffine";
 import type { CopyMakeBorderOptions } from "./ops/copyMakeBorder";
 import type { NormType } from "./ops/normalize";
 import type { LutMap } from "./ops/lut";
+import type { Kernel1D } from "./ops/sepFilter2D";
 import "./ops";
 
 /** Returns the linked OpenCV runtime version, e.g. `"4.10.0"`. */
@@ -556,4 +557,86 @@ export function lut(
   map: LutMap,
 ): Promise<string> {
   return runStandaloneOp("lut", inputPath, outputPath, map);
+}
+
+/**
+ * Standalone wrapper for `sobel`: directional edge derivative (`cv::Sobel`),
+ * returned as an absolute 8-bit image.
+ */
+export function sobel(
+  inputPath: string,
+  outputPath: string,
+  dx: number,
+  dy: number,
+  ksize?: number,
+  scale?: number,
+  delta?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "sobel",
+    inputPath,
+    outputPath,
+    dx,
+    dy,
+    ksize,
+    scale,
+    delta,
+  );
+}
+
+/**
+ * Standalone wrapper for `scharr`: 3×3 first-order edge derivative
+ * (`cv::Scharr`), returned as an absolute 8-bit image.
+ */
+export function scharr(
+  inputPath: string,
+  outputPath: string,
+  dx: number,
+  dy: number,
+  scale?: number,
+  delta?: number,
+): Promise<string> {
+  return runStandaloneOp("scharr", inputPath, outputPath, dx, dy, scale, delta);
+}
+
+/**
+ * Standalone wrapper for `laplacian`: isotropic second-derivative edge detector
+ * (`cv::Laplacian`), returned as an absolute 8-bit image.
+ */
+export function laplacian(
+  inputPath: string,
+  outputPath: string,
+  ksize?: number,
+  scale?: number,
+  delta?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "laplacian",
+    inputPath,
+    outputPath,
+    ksize,
+    scale,
+    delta,
+  );
+}
+
+/**
+ * Standalone wrapper for `sepFilter2D`: separable convolution with 1D row and
+ * column kernels (`cv::sepFilter2D`).
+ */
+export function sepFilter2D(
+  inputPath: string,
+  outputPath: string,
+  kernelX: Kernel1D,
+  kernelY: Kernel1D,
+  delta?: number,
+): Promise<string> {
+  return runStandaloneOp(
+    "sepFilter2D",
+    inputPath,
+    outputPath,
+    kernelX,
+    kernelY,
+    delta,
+  );
 }

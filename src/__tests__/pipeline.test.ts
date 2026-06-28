@@ -282,6 +282,10 @@ describe("Pipeline builder", () => {
       .normalize()
       .convertScaleAbs()
       .lut((x) => 255 - x)
+      .sobel(1, 0)
+      .scharr(0, 1)
+      .laplacian()
+      .sepFilter2D([1, 0, -1], [1, 2, 1])
       .applyMask((m) =>
         m.cvtColor("BGR2HSV").inRange([35, 60, 60], [85, 255, 255]),
       )
@@ -429,6 +433,15 @@ describe("Pipeline builder", () => {
       {
         type: "lut",
         table: Array.from({ length: 256 }, (_unused, x) => 255 - x),
+      },
+      { type: "sobel", dx: 1, dy: 0, ksize: 3, scale: 1, delta: 0 },
+      { type: "scharr", dx: 0, dy: 1, scale: 1, delta: 0 },
+      { type: "laplacian", ksize: 1, scale: 1, delta: 0 },
+      {
+        type: "sepFilter2D",
+        kernelX: [1, 0, -1],
+        kernelY: [1, 2, 1],
+        delta: 0,
       },
       {
         type: "applyMask",
@@ -633,6 +646,29 @@ describe("Pipeline builder", () => {
     expect(() =>
       pipeline().input("/in.png").output("/out.png").lut([0, 1, 2]),
     ).toThrow("lut table must have exactly 256 entries");
+  });
+
+  it("passes explicit gradient-op parameters through", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .sobel(2, 0, 5, 2, 10)
+      .scharr(1, 0, 3, 4)
+      .laplacian(3, 2, 5)
+      .sepFilter2D([1, 2, 1], [1, 0, -1], 7)
+      .run();
+
+    expect(ioCall().ops).toEqual([
+      { type: "sobel", dx: 2, dy: 0, ksize: 5, scale: 2, delta: 10 },
+      { type: "scharr", dx: 1, dy: 0, scale: 3, delta: 4 },
+      { type: "laplacian", ksize: 3, scale: 2, delta: 5 },
+      {
+        type: "sepFilter2D",
+        kernelX: [1, 2, 1],
+        kernelY: [1, 0, -1],
+        delta: 7,
+      },
+    ]);
   });
 });
 

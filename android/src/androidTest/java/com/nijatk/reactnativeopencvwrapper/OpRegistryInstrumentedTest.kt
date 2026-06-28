@@ -1147,4 +1147,336 @@ class OpRegistryInstrumentedTest {
     assertEquals(false, parsed.getBoolean("found"))
     assertEquals(0, parsed.getJSONArray("corners").length())
   }
+
+  // --- Geometric & photometric ops ---------------------------------------
+
+  @Test
+  fun warpPerspectiveIdentityPreservesImage() {
+    val input = writeSourceImage("warpp-in.png")
+    val output = outputPath("warpp-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"warpPerspective","srcPoints":[[0,0],[40,0],[40,60],[0,60]],"dstPoints":[[0,0],[40,0],[40,60],[0,60]],"width":40,"height":60}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(30, 20)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun warpPerspectiveWrongPointCountThrows() {
+    val input = writeSourceImage("warpp-bad-in.png")
+    val output = outputPath("warpp-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"warpPerspective","srcPoints":[[0,0],[40,0],[40,60]],"dstPoints":[[0,0],[40,0],[40,60]]}]""",
+    )
+  }
+
+  @Test
+  fun warpAffineIdentityPreservesImage() {
+    val input = writeSourceImage("warpa-in.png")
+    val output = outputPath("warpa-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"warpAffine","srcPoints":[[0,0],[40,0],[0,60]],"dstPoints":[[0,0],[40,0],[0,60]],"width":40,"height":60}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(30, 20)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun blendWithIdenticalSourcePreservesImage() {
+    val input = writeSourceImage("blend-in.png")
+    val output = outputPath("blend-out.png")
+    val source = sourceBase64()
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"blend","source":"$source","alpha":0.5,"beta":0.5,"gamma":0}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    // 0.5 * (10,20,30) + 0.5 * (10,20,30) == (10,20,30).
+    val pixel = result.get(0, 0)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun equalizeHistProducesSingleChannelImage() {
+    val input = writeSourceImage("equalize-in.png")
+    val output = outputPath("equalize-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"equalizeHist"}]""")
+
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun claheProducesSingleChannelImage() {
+    val input = writeSourceImage("clahe-in.png")
+    val output = outputPath("clahe-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"clahe","clipLimit":2,"tileGridSize":8}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun bilateralFilterPreservesShape() {
+    val input = writeSourceImage("bilateral-in.png")
+    val output = outputPath("bilateral-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"bilateralFilter","diameter":5,"sigmaColor":50,"sigmaSpace":50}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    // A uniform region is unchanged by edge-preserving smoothing.
+    val pixel = result.get(0, 0)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun copyMakeBorderEnlargesImage() {
+    val input = writeSourceImage("border-in.png")
+    val output = outputPath("border-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"copyMakeBorder","top":5,"bottom":5,"left":5,"right":5,"borderType":"constant","color":[0,0,0]}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH + 10, result.cols())
+    assertEquals(HEIGHT + 10, result.rows())
+    // The constant border is black; the inner region keeps the source pixel.
+    val border = result.get(0, 0)
+    assertEquals(0.0, border[0], 0.0)
+    assertEquals(0.0, border[1], 0.0)
+    assertEquals(0.0, border[2], 0.0)
+    val inner = result.get(30, 25)
+    assertEquals(10.0, inner[0], 0.0)
+    assertEquals(20.0, inner[1], 0.0)
+    assertEquals(30.0, inner[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun normalizePreservesShape() {
+    val input = writeSourceImage("normalize-in.png")
+    val output = outputPath("normalize-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"normalize","alpha":0,"beta":255,"normType":"minmax"}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun convertScaleAbsScalesPixelValues() {
+    val input = writeSourceImage("convert-in.png")
+    val output = outputPath("convert-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"convertScaleAbs","alpha":2,"beta":0}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    // |2 * (10,20,30) + 0| == (20,40,60).
+    val pixel = result.get(0, 0)
+    assertEquals(20.0, pixel[0], 0.0)
+    assertEquals(40.0, pixel[1], 0.0)
+    assertEquals(60.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun lutAppliesInverseTable() {
+    val input = writeSourceImage("lut-in.png")
+    val output = outputPath("lut-out.png")
+    val table = (0..255).joinToString(",") { (255 - it).toString() }
+
+    OpRegistry.execute(input, output, """[{"type":"lut","table":[$table]}]""")
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    // table[x] = 255 - x maps (10,20,30) -> (245,235,225).
+    val pixel = result.get(0, 0)
+    assertEquals(245.0, pixel[0], 0.0)
+    assertEquals(235.0, pixel[1], 0.0)
+    assertEquals(225.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  // --- Gradient ops ------------------------------------------------------
+
+  @Test
+  fun sobelOnUniformImageProducesZeros() {
+    val input = writeSourceImage("sobel-in.png")
+    val output = outputPath("sobel-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"sobel","dx":1,"dy":0,"ksize":3,"scale":1,"delta":0}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    // A flat image has no gradient, so the absolute derivative is zero.
+    val pixel = result.get(30, 20)
+    assertEquals(0.0, pixel[0], 0.0)
+    assertEquals(0.0, pixel[1], 0.0)
+    assertEquals(0.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun sobelEvenKsizeThrows() {
+    val input = writeSourceImage("sobel-bad-in.png")
+    val output = outputPath("sobel-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"sobel","dx":1,"dy":0,"ksize":4}]""",
+    )
+  }
+
+  @Test
+  fun scharrOnUniformImageProducesZeros() {
+    val input = writeSourceImage("scharr-in.png")
+    val output = outputPath("scharr-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"scharr","dx":0,"dy":1,"scale":1,"delta":0}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(30, 20)
+    assertEquals(0.0, pixel[0], 0.0)
+    assertEquals(0.0, pixel[1], 0.0)
+    assertEquals(0.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun scharrInvalidDerivativeOrderThrows() {
+    val input = writeSourceImage("scharr-bad-in.png")
+    val output = outputPath("scharr-bad-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"scharr","dx":1,"dy":1}]""",
+    )
+  }
+
+  @Test
+  fun laplacianOnUniformImageProducesZeros() {
+    val input = writeSourceImage("laplacian-in.png")
+    val output = outputPath("laplacian-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"laplacian","ksize":3,"scale":1,"delta":0}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(30, 20)
+    assertEquals(0.0, pixel[0], 0.0)
+    assertEquals(0.0, pixel[1], 0.0)
+    assertEquals(0.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test
+  fun sepFilter2DOnUniformImageWithZeroSumKernel() {
+    val input = writeSourceImage("sep-in.png")
+    val output = outputPath("sep-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"sepFilter2D","kernelX":[1,0,-1],"kernelY":[1,2,1],"delta":0}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    // kernelX = [1,0,-1] sums to zero, so a flat image yields zeros.
+    val pixel = result.get(30, 20)
+    assertEquals(0.0, pixel[0], 0.0)
+    assertEquals(0.0, pixel[1], 0.0)
+    assertEquals(0.0, pixel[2], 0.0)
+    result.release()
+  }
 }
