@@ -1340,6 +1340,112 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqualObjects(parsed[@"count"], @0);
 }
 
+#pragma mark - Connected components / Hough / shape metrics
+
+- (void)testConnectedComponentsCountsBlobsLargestFirst {
+  NSString *input = [self writeShapesImage:@"cc-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"connectedComponents\",\"connectivity\":8,\"minArea\":0}]"
+                             error:&error];
+  XCTAssertNil(error, @"connectedComponents failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertEqualObjects(parsed[@"count"], @2);
+  NSArray *comps = parsed[@"components"];
+  XCTAssertGreaterThanOrEqual([comps[0][@"area"] doubleValue], [comps[1][@"area"] doubleValue]);
+  XCTAssertNotNil(comps[0][@"centroid"][@"x"]);
+}
+
+- (void)testConnectedComponentsRejectsBadConnectivity {
+  NSString *input = [self writeShapesImage:@"cc-bad.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"connectedComponents\",\"connectivity\":7}]"
+                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+}
+
+- (void)testHoughLinesFindsStraightEdges {
+  cv::Mat canvas(200, 200, CV_8UC1, cv::Scalar(0));
+  cv::line(canvas, cv::Point(10, 100), cv::Point(190, 100), cv::Scalar(255), 2);
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"hl-in.png"];
+  XCTAssertTrue(cv::imwrite(path.UTF8String, canvas));
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", path];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"houghLines\",\"threshold\":50,\"minLineLength\":80,\"maxLineGap\":10}]"
+                             error:&error];
+  XCTAssertNil(error, @"houghLines failed: %@", error);
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertGreaterThanOrEqual([parsed[@"count"] intValue], 1);
+}
+
+- (void)testHoughCirclesFindsDrawnCircle {
+  cv::Mat canvas(200, 200, CV_8UC1, cv::Scalar(0));
+  cv::circle(canvas, cv::Point(100, 100), 40, cv::Scalar(255), 2);
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"hc-in.png"];
+  XCTAssertTrue(cv::imwrite(path.UTF8String, canvas));
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", path];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"houghCircles\",\"param2\":20,\"minRadius\":20,\"maxRadius\":60}]"
+                             error:&error];
+  XCTAssertNil(error, @"houghCircles failed: %@", error);
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertGreaterThanOrEqual([parsed[@"count"] intValue], 1);
+}
+
+- (void)testBoundingRectAndMinAreaRectUseLargestContour {
+  NSString *input = [self writeShapesImage:@"br-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSDictionary *box = [self parseDataResult:[OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"boundingRect\"}]"
+                             error:&error]];
+  XCTAssertEqualObjects(box[@"found"], @YES);
+  XCTAssertGreaterThan([box[@"boundingBox"][@"width"] intValue], 50);
+
+  NSDictionary *rr = [self parseDataResult:[OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"minAreaRect\"}]"
+                             error:&error]];
+  XCTAssertEqualObjects(rr[@"found"], @YES);
+  XCTAssertNotNil(rr[@"minAreaRect"][@"angle"]);
+}
+
+- (void)testApproxPolyDPSimplifiesToCorners {
+  NSString *input = [self writeShapesImage:@"approx-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+  NSError *error = nil;
+  NSDictionary *parsed = [self parseDataResult:[OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"approxPolyDP\",\"epsilon\":0.05}]"
+                             error:&error]];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertEqual([parsed[@"points"] count], 4u);
+}
+
 #pragma mark - Geometric & photometric ops
 
 - (void)testWarpPerspectiveIdentityPreservesImage {

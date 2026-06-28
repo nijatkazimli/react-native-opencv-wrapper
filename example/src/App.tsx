@@ -437,6 +437,46 @@ export default function App() {
     }
   }, []);
 
+  const runFindShapesDemo = useCallback(async () => {
+    try {
+      // Analyse: threshold the photo, then count contours + bounding boxes.
+      const shapes = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .gray()
+        .threshold(120, 255)
+        .findContours({ minArea: 500 });
+      // Visualize: draw each contour's bounding box on the original.
+      const thickness = Math.max(
+        2,
+        Math.round(Math.max(shapes.width, shapes.height) / 200),
+      );
+      let annotated = pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .outputBase64("png");
+      for (const c of shapes.contours.slice(0, 20)) {
+        const { x, y, width, height } = c.boundingBox;
+        annotated = annotated.drawRect(x, y, width, height, {
+          color: [57, 255, 20],
+          thickness,
+        });
+      }
+      const outBase64 = await annotated.run();
+      setResults((r) => [
+        {
+          id: `shapes-${Date.now()}`,
+          label: "Find Shapes",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+          captions: { left: "original", right: "contours" },
+          note: `found ${shapes.count} shapes (area ≥ 500px²)`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Find Shapes: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -459,6 +499,7 @@ export default function App() {
         <Button label="Scan Document" onPress={runScanDocumentDemo} />
         <Button label="Scan B&W" onPress={runScanBwDemo} />
         <Button label="Detect Document" onPress={runDetectDocumentDemo} />
+        <Button label="Find Shapes" onPress={runFindShapesDemo} />
       </View>
 
       {results.map((r) => (
