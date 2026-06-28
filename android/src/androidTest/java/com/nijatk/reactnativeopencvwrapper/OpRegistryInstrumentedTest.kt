@@ -1148,6 +1148,76 @@ class OpRegistryInstrumentedTest {
     assertEquals(0, parsed.getJSONArray("corners").length())
   }
 
+  // --- Contour & shape analysis (findContours) ------------------------------
+
+  /**
+   * Render two filled white squares on a black background and return the path,
+   * so contour detection has two distinct shapes to find.
+   */
+  private fun writeShapesImage(name: String): String {
+    val canvas = Mat(240, 320, CvType.CV_8UC3, Scalar(0.0, 0.0, 0.0))
+    Imgproc.rectangle(canvas, Point(20.0, 20.0), Point(120.0, 120.0), Scalar(255.0, 255.0, 255.0), -1)
+    Imgproc.rectangle(canvas, Point(180.0, 60.0), Point(220.0, 100.0), Scalar(255.0, 255.0, 255.0), -1)
+    val file = File(cacheDir, name)
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    canvas.release()
+    return file.absolutePath
+  }
+
+  @Test
+  fun findContoursReturnsShapesLargestFirst() {
+    val input = writeShapesImage("contours-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"findContours","mode":"external","minArea":0.0,"epsilon":0.0}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue(parsed.getBoolean("found"))
+    assertEquals(2, parsed.getInt("count"))
+    assertEquals(320, parsed.getInt("width"))
+    assertEquals(240, parsed.getInt("height"))
+    val contours = parsed.getJSONArray("contours")
+    val first = contours.getJSONObject(0)
+    val second = contours.getJSONObject(1)
+    assertTrue("largest contour first", first.getDouble("area") >= second.getDouble("area"))
+    val box = first.getJSONObject("boundingBox")
+    assertTrue("bounding box has width", box.getInt("width") > 50)
+    assertTrue("min-area rect present", first.getJSONObject("minAreaRect").has("angle"))
+    assertTrue("has points", first.getJSONArray("points").length() >= 4)
+  }
+
+  @Test
+  fun findContoursMinAreaFiltersSmallShapes() {
+    val input = writeShapesImage("contours-filter-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"findContours","mode":"external","minArea":5000.0,"epsilon":0.0}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals("only the large square survives", 1, parsed.getInt("count"))
+  }
+
+  @Test
+  fun findContoursReturnsNotFoundOnBlankImage() {
+    val canvas = Mat(120, 160, CvType.CV_8UC1, Scalar(0.0))
+    val file = File(cacheDir, "contours-black.png")
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    canvas.release()
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"${file.absolutePath}"}""",
+      """[{"type":"findContours","mode":"list","minArea":0.0,"epsilon":0.02}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals(false, parsed.getBoolean("found"))
+    assertEquals(0, parsed.getInt("count"))
+  }
+
   // --- Geometric & photometric ops ---------------------------------------
 
   @Test

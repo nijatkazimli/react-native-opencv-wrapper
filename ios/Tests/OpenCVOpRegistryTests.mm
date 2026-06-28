@@ -1267,6 +1267,79 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqual([parsed[@"corners"] count], 0u);
 }
 
+#pragma mark - Contour & shape analysis (findContours)
+
+- (NSString *)writeShapesImage:(NSString *)name {
+  cv::Mat canvas(240, 320, CV_8UC3, cv::Scalar(0, 0, 0));
+  cv::rectangle(canvas, cv::Point(20, 20), cv::Point(120, 120), cv::Scalar(255, 255, 255), -1);
+  cv::rectangle(canvas, cv::Point(180, 60), cv::Point(220, 100), cv::Scalar(255, 255, 255), -1);
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:name];
+  bool ok = cv::imwrite(path.UTF8String, canvas);
+  XCTAssertTrue(ok, @"failed to write shapes image");
+  return path;
+}
+
+- (void)testFindContoursReturnsShapesLargestFirst {
+  NSString *input = [self writeShapesImage:@"contours-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"findContours\",\"mode\":\"external\",\"minArea\":0,\"epsilon\":0}]"
+                             error:&error];
+  XCTAssertNil(error, @"findContours failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertEqualObjects(parsed[@"count"], @2);
+  XCTAssertEqualObjects(parsed[@"width"], @320);
+  XCTAssertEqualObjects(parsed[@"height"], @240);
+  NSArray *contours = parsed[@"contours"];
+  double first = [contours[0][@"area"] doubleValue];
+  double second = [contours[1][@"area"] doubleValue];
+  XCTAssertGreaterThanOrEqual(first, second);
+  XCTAssertNotNil(contours[0][@"boundingBox"][@"width"]);
+  XCTAssertNotNil(contours[0][@"minAreaRect"][@"angle"]);
+  XCTAssertGreaterThanOrEqual([contours[0][@"points"] count], 4u);
+}
+
+- (void)testFindContoursMinAreaFiltersSmallShapes {
+  NSString *input = [self writeShapesImage:@"contours-filter-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"findContours\",\"minArea\":5000}]"
+                             error:&error];
+  XCTAssertNil(error, @"findContours failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"count"], @1);
+}
+
+- (void)testFindContoursReturnsNotFoundOnBlankImage {
+  cv::Mat canvas(120, 160, CV_8UC1, cv::Scalar(0));
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"contours-black.png"];
+  XCTAssertTrue(cv::imwrite(path.UTF8String, canvas));
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", path];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"findContours\",\"mode\":\"list\",\"epsilon\":0.02}]"
+                             error:&error];
+  XCTAssertNil(error, @"findContours failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @NO);
+  XCTAssertEqualObjects(parsed[@"count"], @0);
+}
+
 #pragma mark - Geometric & photometric ops
 
 - (void)testWarpPerspectiveIdentityPreservesImage {

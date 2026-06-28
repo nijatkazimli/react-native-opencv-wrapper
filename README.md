@@ -168,10 +168,11 @@ URIs), and every async call resolves with the output path.
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
 
-| Analysis op     | Method             | Returns                                                                                                    |
-| --------------- | ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Decode QR       | `decodeQR()`       | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops)                              |
-| Detect document | `detectDocument()` | `DetectDocumentResult` — four document corners, see [Structured results](#structured-results-analysis-ops) |
+| Analysis op     | Method                   | Returns                                                                                                                                |
+| --------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Decode QR       | `decodeQR()`             | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops)                                                          |
+| Detect document | `detectDocument()`       | `DetectDocumentResult` — four document corners, see [Structured results](#structured-results-analysis-ops)                             |
+| Find contours   | `findContours(options?)` | `FindContoursResult` — per-shape area, points, bounding box, min-area rect, see [Structured results](#structured-results-analysis-ops) |
 
 ### Standalone
 
@@ -605,6 +606,57 @@ interface DetectDocumentResult {
   found: boolean; // true when a document-like quad was located
   corners: { x: number; y: number }[]; // tl, tr, br, bl (empty if not found)
   width: number; // px width of the analysed image (corner coordinate space)
+  height: number; // px height of the analysed image
+}
+```
+
+`findContours()` returns every contour with its area, points, bounding box, and
+rotated min-area rect — ordered largest-area first. Treat the image as a binary
+mask, so grayscale + threshold (or canny) first for clean shapes:
+
+```ts
+import {
+  pipeline,
+  type FindContoursResult,
+} from "@nijatk/react-native-opencv-wrapper";
+
+const shapes: FindContoursResult = await pipeline()
+  .input("/abs/path/shapes.png")
+  .gray()
+  .threshold(128, 255)
+  .findContours({ minArea: 100, epsilon: 0.02 });
+
+for (const c of shapes.contours) {
+  console.log(c.area, c.boundingBox, c.minAreaRect.angle);
+}
+```
+
+`findContours(options?)` accepts:
+
+- `mode`: `"external"` (default, outermost only) or `"list"` (every contour).
+- `minArea`: discard contours below this area in px². Default `0`.
+- `epsilon`: polygon-simplify factor of each perimeter (`approxPolyDP`); `0`
+  (default) keeps raw points, `0.02` reduces shapes to corners.
+
+The result shape is:
+
+```ts
+interface FindContoursResult {
+  found: boolean; // true when ≥1 contour passed the minArea filter
+  count: number; // number of contours returned
+  contours: {
+    area: number; // px²
+    points: { x: number; y: number }[]; // boundary points
+    boundingBox: { x: number; y: number; width: number; height: number };
+    minAreaRect: {
+      centerX: number;
+      centerY: number;
+      width: number;
+      height: number;
+      angle: number;
+    };
+  }[];
+  width: number; // px width of the analysed image
   height: number; // px height of the analysed image
 }
 ```

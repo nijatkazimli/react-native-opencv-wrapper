@@ -44,3 +44,4 @@ export * from "./debug";
 export * from "./decodeQR";
 export * from "./detectDocument";
 export * from "./scanDocument";
+export * from "./findContours";

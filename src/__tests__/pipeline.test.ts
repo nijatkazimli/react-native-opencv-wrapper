@@ -779,4 +779,67 @@ describe("Data-returning analysis ops", () => {
     expect(input).toEqual({ kind: "path", value: "/abs/doc.png" });
     expect(ops).toEqual([{ type: "gray" }, { type: "detectDocument" }]);
   });
+
+  it("findContours resolves with the parsed shape result", async () => {
+    native.runPipelineData.mockResolvedValueOnce(
+      JSON.stringify({
+        found: true,
+        count: 1,
+        contours: [
+          {
+            area: 1000,
+            points: [
+              { x: 0, y: 0 },
+              { x: 10, y: 0 },
+              { x: 10, y: 10 },
+              { x: 0, y: 10 },
+            ],
+            boundingBox: { x: 0, y: 0, width: 10, height: 10 },
+            minAreaRect: {
+              centerX: 5,
+              centerY: 5,
+              width: 10,
+              height: 10,
+              angle: 0,
+            },
+          },
+        ],
+        width: 320,
+        height: 240,
+      }),
+    );
+
+    const result = await pipeline()
+      .input("/abs/shapes.png")
+      .gray()
+      .threshold(128, 255)
+      .findContours();
+
+    expect(result.found).toBe(true);
+    expect(result.count).toBe(1);
+    expect(result.contours[0]!.area).toBe(1000);
+    expect(native.runPipelineData).toHaveBeenCalledTimes(1);
+    expect(native.runPipelineIO).not.toHaveBeenCalled();
+  });
+
+  it("appends findContours with defaulted options after transforms", async () => {
+    await pipeline().input("/abs/shapes.png").gray().findContours();
+
+    const { input, ops } = dataCall();
+    expect(input).toEqual({ kind: "path", value: "/abs/shapes.png" });
+    expect(ops).toEqual([
+      { type: "gray" },
+      { type: "findContours", mode: "external", minArea: 0, epsilon: 0 },
+    ]);
+  });
+
+  it("forwards explicit findContours options", async () => {
+    await pipeline()
+      .input("/abs/shapes.png")
+      .findContours({ mode: "list", minArea: 50, epsilon: 0.02 });
+
+    expect(dataCall().ops).toEqual([
+      { type: "findContours", mode: "list", minArea: 50, epsilon: 0.02 },
+    ]);
+  });
 });
