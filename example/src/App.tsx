@@ -149,6 +149,72 @@ const DEMOS: readonly Demo[] = [
       ),
   },
   {
+    label: "Warp Persp",
+    configure: (p) =>
+      p.resize(256, 256, "area").warpPerspective(
+        [
+          [0, 0],
+          [256, 0],
+          [256, 256],
+          [0, 256],
+        ],
+        [
+          [40, 0],
+          [216, 0],
+          [256, 256],
+          [0, 256],
+        ],
+      ),
+  },
+  {
+    label: "Warp Affine",
+    configure: (p) =>
+      p.resize(256, 256, "area").warpAffine(
+        [
+          [0, 0],
+          [256, 0],
+          [0, 256],
+        ],
+        [
+          [40, 0],
+          [296, 0],
+          [0, 256],
+        ],
+      ),
+  },
+  {
+    label: "Blend",
+    configure: (p) => p.blend(SAMPLE_DOCUMENT_PHOTO_BASE64, 0.6, 0.4, 0),
+  },
+  { label: "Equalize", configure: (p) => p.equalizeHist() },
+  { label: "CLAHE", configure: (p) => p.clahe(3, 8) },
+  { label: "Bilateral", configure: (p) => p.bilateralFilter(9, 75, 75) },
+  {
+    label: "Border",
+    configure: (p) =>
+      p.copyMakeBorder(16, 16, 16, 16, {
+        borderType: "constant",
+        color: [255, 0, 200],
+      }),
+  },
+  { label: "Normalize", configure: (p) => p.normalize(0, 255, "minmax") },
+  {
+    label: "Bright/Contrast",
+    configure: (p) => p.convertScaleAbs(1.4, 20),
+  },
+  { label: "LUT Invert", configure: (p) => p.lut((x) => 255 - x) },
+  {
+    label: "LUT Gamma",
+    configure: (p) => p.lut((x) => 255 * (x / 255) ** 0.5),
+  },
+  { label: "Sobel X", configure: (p) => p.gray().sobel(1, 0, 3) },
+  { label: "Scharr Y", configure: (p) => p.gray().scharr(0, 1) },
+  { label: "Laplacian", configure: (p) => p.gray().laplacian(3) },
+  {
+    label: "Sep Filter",
+    configure: (p) => p.gray().sepFilter2D([1, 0, -1], [1, 2, 1]),
+  },
+  {
     label: "Pipeline",
     configure: (p) =>
       p.resize(128, 128, "area").gray().gaussianBlur(7).canny(50, 150),
@@ -182,7 +248,8 @@ export default function App() {
 
   const runDemo = useCallback(async ({ label, configure }: Demo) => {
     try {
-      const outputPath = `${DIR}/out-${label}-${Date.now()}.png`;
+      const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
+      const outputPath = `${DIR}/out-${safeLabel}-${Date.now()}.png`;
       const base = pipeline().input(INPUT_PATH).output(outputPath);
       const path = await configure(base).run();
       setResults((r) => [
