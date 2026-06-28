@@ -14,11 +14,8 @@ OPENCV_REGISTER_OP(drawPolygon, @"drawPolygon",
         return Mat();
     }
     if (!OpenCVRequireNumbers(params, @[@"thickness"], error)) return Mat();
-    int thickness = [params[@"thickness"] intValue];
-    if (thickness < 1) {
-        if (error) *error = OpenCVMakeError(@"drawPolygon 'thickness' must be >= 1");
-        return Mat();
-    }
+    OpenCVDrawStyle style;
+    if (!OpenCVResolveDrawStyle(params, @"drawPolygon", &style, error)) return Mat();
     std::vector<cv::Point> pts;
     for (id point in (NSArray *)rawPoints) {
         if (![point isKindOfClass:[NSArray class]] || [(NSArray *)point count] < 2) {
@@ -34,14 +31,11 @@ OPENCV_REGISTER_OP(drawPolygon, @"drawPolygon",
         pts.emplace_back([px intValue], [py intValue]);
     }
     BOOL closed = params[@"closed"] ? [params[@"closed"] boolValue] : YES;
-    cv::Scalar color = OpenCVColorScalar(params[@"color"], cv::Scalar(0, 0, 255));
-    int lineType = OpenCVAntialias(params) ? cv::LINE_AA : cv::LINE_8;
     Mat dst = current.clone();
     std::vector<std::vector<cv::Point>> polys{pts};
-    if ([params[@"fillColor"] isKindOfClass:[NSArray class]]) {
-        cv::Scalar fillColor = OpenCVColorScalar(params[@"fillColor"], color);
-        cv::fillPoly(dst, polys, fillColor, lineType);
+    if (style.hasFill) {
+        cv::fillPoly(dst, polys, style.fillColor, style.lineType);
     }
-    cv::polylines(dst, polys, closed, color, thickness, lineType);
+    cv::polylines(dst, polys, closed, style.color, style.thickness, style.lineType);
     return dst;
 });

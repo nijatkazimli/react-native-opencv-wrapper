@@ -32,6 +32,7 @@
     "lib",
     "example",
     "example/node_modules",
-    "src/**/__tests__"
+    "src/**/__tests__",
+    "src/**/__mocks__"
   ]
 }

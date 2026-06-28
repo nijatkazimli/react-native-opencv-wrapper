@@ -18,17 +18,12 @@ OPENCV_REGISTER_OP(putText, @"putText",
         if (error) *error = OpenCVMakeError(@"putText 'fontScale' must be positive");
         return Mat();
     }
-    int thickness = [params[@"thickness"] intValue];
-    if (thickness < 1) {
-        if (error) *error = OpenCVMakeError(@"putText 'thickness' must be >= 1");
-        return Mat();
-    }
+    OpenCVDrawStyle style;
+    if (!OpenCVResolveDrawStyle(params, @"putText", &style, error)) return Mat();
     int x = [params[@"x"] intValue];
     int y = [params[@"y"] intValue];
-    cv::Scalar color = OpenCVColorScalar(params[@"color"], cv::Scalar(0, 0, 255));
-    int lineType = OpenCVAntialias(params) ? cv::LINE_AA : cv::LINE_8;
     Mat dst = current.clone();
     cv::putText(dst, std::string([text UTF8String]), cv::Point(x, y),
-                cv::FONT_HERSHEY_SIMPLEX, fontScale, color, thickness, lineType);
+                cv::FONT_HERSHEY_SIMPLEX, fontScale, style.color, style.thickness, style.lineType);
     return dst;
 });
