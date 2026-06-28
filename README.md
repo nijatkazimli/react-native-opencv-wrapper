@@ -168,11 +168,17 @@ URIs), and every async call resolves with the output path.
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
 
-| Analysis op     | Method                   | Returns                                                                                                                                |
-| --------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Decode QR       | `decodeQR()`             | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops)                                                          |
-| Detect document | `detectDocument()`       | `DetectDocumentResult` — four document corners, see [Structured results](#structured-results-analysis-ops)                             |
-| Find contours   | `findContours(options?)` | `FindContoursResult` — per-shape area, points, bounding box, min-area rect, see [Structured results](#structured-results-analysis-ops) |
+| Analysis op          | Method                          | Returns                                                                                                                                |
+| -------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Decode QR            | `decodeQR()`                    | `DecodeQRResult` — see [Structured results](#structured-results-analysis-ops)                                                          |
+| Detect document      | `detectDocument()`              | `DetectDocumentResult` — four document corners, see [Structured results](#structured-results-analysis-ops)                             |
+| Find contours        | `findContours(options?)`        | `FindContoursResult` — per-shape area, points, bounding box, min-area rect, see [Structured results](#structured-results-analysis-ops) |
+| Connected components | `connectedComponents(options?)` | `ConnectedComponentsResult` — per-blob area, bounding box, centroid                                                                    |
+| Hough lines          | `houghLines(options?)`          | `HoughLinesResult` — detected line segments `{x1,y1,x2,y2}`                                                                            |
+| Hough circles        | `houghCircles(options?)`        | `HoughCirclesResult` — detected circles `{x,y,radius}`                                                                                 |
+| Bounding rect        | `boundingRect(options?)`        | `BoundingRectResult` — bbox of points or the largest contour                                                                           |
+| Min-area rect        | `minAreaRect(options?)`         | `MinAreaRectResult` — rotated bbox of points or the largest contour                                                                    |
+| Approx polygon       | `approxPolyDP(options?)`        | `ApproxPolyDPResult` — simplified polygon vertices                                                                                     |
 
 ### Standalone
 
@@ -660,6 +666,52 @@ interface FindContoursResult {
   height: number; // px height of the analysed image
 }
 ```
+
+`connectedComponents()`, `houghLines()`, and `houghCircles()` cover blob and
+geometric detection; `boundingRect()`, `minAreaRect()`, and `approxPolyDP()`
+give quick shape metrics for an explicit point set or the largest contour:
+
+```ts
+// Count blobs (binary mask → labelled regions, largest first)
+const blobs = await pipeline()
+  .input(mask)
+  .gray()
+  .threshold(128, 255)
+  .connectedComponents({ minArea: 50 });
+console.log(blobs.count, blobs.components[0]?.centroid);
+
+// Detect straight lines on edges
+const lines = await pipeline()
+  .input(photo)
+  .gray()
+  .canny(50, 150)
+  .houghLines({ threshold: 80, minLineLength: 40, maxLineGap: 8 });
+
+// Detect circles (e.g. coins)
+const circles = await pipeline()
+  .input(photo)
+  .gaussianBlur(5)
+  .houghCircles({ minDist: 30, minRadius: 10, maxRadius: 80 });
+
+// Shape metrics of the dominant blob, or of explicit points
+const rect = await pipeline()
+  .input(mask)
+  .gray()
+  .threshold(128, 255)
+  .boundingRect();
+const corners = await pipeline()
+  .input(mask)
+  .gray()
+  .threshold(128, 255)
+  .approxPolyDP({ epsilon: 0.02 });
+```
+
+Each resolves with `{ found, count?, ..., width, height }`. `boundingRect`,
+`minAreaRect`, and `approxPolyDP` accept `points: [x, y][]`; when omitted they
+analyse the largest external contour of the binary image. See the exported
+`ConnectedComponentsResult`, `HoughLinesResult`, `HoughCirclesResult`,
+`BoundingRectResult`, `MinAreaRectResult`, and `ApproxPolyDPResult` types for
+full shapes.
 
 ### Dynamic single ops
 

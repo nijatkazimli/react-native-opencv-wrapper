@@ -1218,6 +1218,129 @@ class OpRegistryInstrumentedTest {
     assertEquals(0, parsed.getInt("count"))
   }
 
+  // --- connectedComponents ---------------------------------------------------
+
+  @Test
+  fun connectedComponentsCountsBlobsLargestFirst() {
+    val input = writeShapesImage("cc-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"connectedComponents","connectivity":8,"minArea":0.0}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue(parsed.getBoolean("found"))
+    assertEquals(2, parsed.getInt("count"))
+    val comps = parsed.getJSONArray("components")
+    val first = comps.getJSONObject(0)
+    val second = comps.getJSONObject(1)
+    assertTrue(first.getDouble("area") >= second.getDouble("area"))
+    assertTrue(first.getJSONObject("boundingBox").getInt("width") > 50)
+    assertTrue(first.getJSONObject("centroid").has("x"))
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun connectedComponentsRejectsBadConnectivity() {
+    val input = writeShapesImage("cc-bad.png")
+    OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"connectedComponents","connectivity":7}]""",
+    )
+  }
+
+  // --- houghLines & houghCircles --------------------------------------------
+
+  @Test
+  fun houghLinesFindsStraightEdges() {
+    val canvas = Mat(200, 200, CvType.CV_8UC1, Scalar(0.0))
+    Imgproc.line(canvas, Point(10.0, 100.0), Point(190.0, 100.0), Scalar(255.0), 2)
+    val file = File(cacheDir, "hl-in.png")
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    canvas.release()
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"${file.absolutePath}"}""",
+      """[{"type":"houghLines","rho":1.0,"theta":${Math.PI / 180},"threshold":50,"minLineLength":80.0,"maxLineGap":10.0}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue(parsed.getBoolean("found"))
+    assertTrue(parsed.getInt("count") >= 1)
+    assertTrue(parsed.getJSONArray("lines").getJSONObject(0).has("x1"))
+  }
+
+  @Test
+  fun houghCirclesFindsDrawnCircle() {
+    val canvas = Mat(200, 200, CvType.CV_8UC1, Scalar(0.0))
+    Imgproc.circle(canvas, Point(100.0, 100.0), 40, Scalar(255.0), 2)
+    val file = File(cacheDir, "hc-in.png")
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    canvas.release()
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"${file.absolutePath}"}""",
+      """[{"type":"houghCircles","dp":1.0,"minDist":20.0,"param1":100.0,"param2":20.0,"minRadius":20,"maxRadius":60}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals(200, parsed.getInt("width"))
+    assertTrue(parsed.getInt("count") >= 1)
+  }
+
+  // --- boundingRect / minAreaRect / approxPolyDP ----------------------------
+
+  @Test
+  fun boundingRectAndMinAreaRectUseLargestContour() {
+    val input = writeShapesImage("br-in.png")
+
+    val box = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"boundingRect"}]""",
+      ),
+    )
+    assertTrue(box.getBoolean("found"))
+    assertTrue(box.getJSONObject("boundingBox").getInt("width") > 50)
+
+    val rr = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"minAreaRect"}]""",
+      ),
+    )
+    assertTrue(rr.getBoolean("found"))
+    assertTrue(rr.getJSONObject("minAreaRect").has("angle"))
+  }
+
+  @Test
+  fun approxPolyDPSimplifiesToCorners() {
+    val input = writeShapesImage("approx-in.png")
+
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"approxPolyDP","epsilon":0.05,"closed":true}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    assertEquals("a square reduces to 4 corners", 4, parsed.getJSONArray("points").length())
+  }
+
+  @Test
+  fun boundingRectAcceptsExplicitPoints() {
+    val input = writeShapesImage("br-pts-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"boundingRect","points":[[10,10],[60,10],[60,40],[10,40]]}]""",
+      ),
+    )
+    val box = parsed.getJSONObject("boundingBox")
+    assertEquals(51, box.getInt("width"))
+    assertEquals(31, box.getInt("height"))
+  }
+
   // --- Geometric & photometric ops ---------------------------------------
 
   @Test

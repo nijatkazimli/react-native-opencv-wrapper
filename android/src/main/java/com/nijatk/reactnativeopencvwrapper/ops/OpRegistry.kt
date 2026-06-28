@@ -61,6 +61,12 @@ object OpRegistry {
     DecodeQROp,
     DetectDocumentOp,
     FindContoursOp,
+    ConnectedComponentsOp,
+    HoughLinesOp,
+    HoughCirclesOp,
+    BoundingRectOp,
+    MinAreaRectOp,
+    ApproxPolyDPOp,
   ).associateBy { it.name }
 
   /** Run all serialized ops in `opsJson`, reading once and writing once. */
