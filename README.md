@@ -116,7 +116,10 @@ Every operation is available in two forms:
 - **Standalone** — a one-shot function that reads the input, applies a single
   operation, and writes the output.
 - **Pipeline** — chain multiple operations and run them in a single native
-  pass (read once, transform in memory, write once).
+  pass (read once, transform in memory, write once). Before running, the chain
+  is optimized losslessly: adjacent point transforms (`lut`, `bitwiseNot`) are
+  fused into one `cv::LUT` pass and redundant consecutive `gray()` calls are
+  collapsed, so the output is identical while doing less work.
 
 All input/output arguments must be **absolute filesystem paths** (no `file://`
 URIs), and every async call resolves with the output path.
@@ -124,7 +127,7 @@ URIs), and every async call resolves with the output path.
 ### Operations
 
 | Operation          | Method / function                                                    | Parameters                                                                                                                                                                                                                                                                       |
-| ------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Grayscale          | `gray()` (alias `toGray`)                                            | –                                                                                                                                                                                                                                                                                |
 | Gaussian blur      | `gaussianBlur(kernelSize, sigmaX?)`                                  | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                                                                                                                                      |
 | Median blur        | `medianBlur(kernelSize)`                                             | `kernelSize`: positive odd int                                                                                                                                                                                                                                                   |
@@ -163,7 +166,8 @@ URIs), and every async call resolves with the output path.
 | Convert scale abs  | `convertScaleAbs(alpha?, beta?)`                                     | brightness/contrast `out = \|alpha·current + beta\|`, 8-bit saturated; `alpha` default `1`; `beta` default `0`                                                                                                                                                                   |
 | Lookup table       | `lut(map)`                                                           | per-pixel intensity remap (`cv::LUT`); `map`: a function `(x) => y` over `x = 0..255`, or a 256-entry table; outputs rounded and clamped to 0–255; the same table is applied to every channel (invert, gamma, posterize, solarize, custom curves)                                |
 | Debug capture      | `debug(path)`                                                        | `path`: absolute file path; writes the current intermediate image (encoder from the extension) and passes it through unchanged                                                                                                                                                   |
-| Scan document      | `scanDocument(options?)`                                             | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                                                                                                    |     | Distance transform | `distanceTransform(distanceType?, maskSize?, normalize?)` | distance of each foreground pixel to the nearest background pixel (Otsu-binarized first); `distanceType`: `"L2"` (default) \| `"L1"` \| `"C"`; `maskSize`: `0 \| 3 \| 5` (default `3`); `normalize`: stretch to 0–255 (default `true`); returns single-channel |
+| Scan document      | `scanDocument(options?)`                                             | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                                                                                                    |
+| Distance transform | `distanceTransform(distanceType?, maskSize?, normalize?)`            | distance of each foreground pixel to the nearest background pixel (Otsu-binarized first); `distanceType`: `"L2"` (default) \| `"L1"` \| `"C"`; `maskSize`: `0 \| 3 \| 5` (default `3`); `normalize`: stretch to 0–255 (default `true`); returns single-channel                   |
 | K-means quantize   | `kmeans(k?, attempts?, iterations?)`                                 | color-quantize to `k` representative colors; `k` ≥ 1 (default `8`); `attempts` default `3`; `iterations` default `10`                                                                                                                                                            |
 | GrabCut            | `grabCut(rect, iterations?)`                                         | extract the foreground seeded by `rect` `{x, y, width, height}`; background pixels become black; `iterations` default `5`                                                                                                                                                        |
 | Watershed          | `watershed(lineColor?)`                                              | marker-based segmentation with auto-derived markers; region boundaries are drawn onto the image; `lineColor`: boundary `[r, g, b]` (default red)                                                                                                                                 |
@@ -892,26 +896,28 @@ base64 sources and sinks. Known gaps and planned improvements:
   modules still goes through a file or a base64 round-trip.
 - **No live camera / frame processing.** There is no frame processor or
   per-frame API; this is not a replacement for camera-stream vision pipelines.
-- **Single-image ops.** No multi-image inputs (blending, stitching, template
-  matching) or video decoding/encoding.
-- **Fixed op set.** Only the operations listed above are exposed. Custom kernels,
-  arbitrary OpenCV calls, and color-space conversions beyond grayscale are not
-  available without adding a new op (see [CONTRIBUTING.md](CONTRIBUTING.md)).
-- **Few analysis ops.** Structured results are supported (see
-  [Structured results](#structured-results-analysis-ops)), but `decodeQR` is the
-  only analysis op so far; detectors like contours, histograms, feature points,
-  and face detection are not exposed yet.
-- **Limited parameter surface.** Things like border types, anchor points,
-  kernel shapes (only square), and per-channel control are not exposed.
+- **No stitching or video.** Two-image ops such as `blend` and `matchTemplate`
+  are supported, but multi-image stitching and video decoding/encoding are not.
+- **Fixed op set.** Only the operations listed above are exposed. Custom kernels
+  and arbitrary OpenCV calls are not available without adding a new op (see
+  [CONTRIBUTING.md](CONTRIBUTING.md)).
+- **No feature-point or face detection.** Many structured-result detectors are
+  available (see [Structured results](#structured-results-analysis-ops)) —
+  contours, hull/bounding shapes, Hough lines/circles, histograms, template
+  matching, and more — but feature points (ORB/SIFT) and face detection are not
+  exposed yet.
+- **Limited parameter surface.** Morphology uses a square structuring element
+  only (no ellipse/cross shapes), and things like anchor points and per-channel
+  control are not exposed.
 - **No cancellation or progress.** Long pipelines run to completion; there is no
   way to cancel an in-flight call.
 
 **Planned / nice-to-have**
 
-- More analysis ops returning structured data (contours, histograms, feature
-  points, face detection).
-- More operations: color conversions, morphology shapes, warp/perspective,
-  adaptive threshold, bitwise ops.
+- Feature-point and face detection analysis ops.
+- Morphology structuring-element shapes (ellipse/cross) and more kernel/anchor
+  control.
+- Image stitching and basic video decode/encode.
 - Optional output encoding controls (JPG quality, PNG compression).
 - A typed escape hatch for running an arbitrary sequence of raw OpenCV steps.
 - Broader automated testing across both platforms and OpenCV versions.

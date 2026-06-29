@@ -7,6 +7,8 @@ import com.nijatk.reactnativeopencvwrapper.ops.OpenCVDocumentNotFoundException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVIOException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnavailableException
 import com.nijatk.reactnativeopencvwrapper.ops.OpenCVUnknownOpException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import org.json.JSONException
 import org.json.JSONObject
 import org.opencv.android.OpenCVLoader
@@ -20,6 +22,14 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
   // can fail fast with a clear message instead of a cryptic UnsatisfiedLinkError.
   private val openCVReady: Boolean =
     runCatching { OpenCVLoader.initLocal() }.getOrDefault(false)
+
+  // Heavy OpenCV work runs on this pool instead of the JS/calling thread so it
+  // never blocks UI. Sized to the device's cores; OpenCV also parallelizes
+  // within a single op, so this mainly lets independent pipeline calls overlap.
+  private val executor: ExecutorService =
+    Executors.newFixedThreadPool(
+      Runtime.getRuntime().availableProcessors().coerceAtLeast(2),
+    )
 
   override fun getOpenCVVersion(): String = Core.VERSION
 
@@ -97,28 +107,32 @@ class ReactNativeOpencvWrapperModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  private inline fun runOp(promise: Promise, outputPath: String, block: () -> Unit) {
+  private fun runOp(promise: Promise, outputPath: String, block: () -> Unit) {
     if (!openCVReady) {
       promise.reject("opencv_unavailable", "OpenCV native library failed to initialize")
       return
     }
-    try {
-      block()
-      promise.resolve(outputPath)
-    } catch (t: Throwable) {
-      promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
+    executor.execute {
+      try {
+        block()
+        promise.resolve(outputPath)
+      } catch (t: Throwable) {
+        promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
+      }
     }
   }
 
-  private inline fun runReturning(promise: Promise, block: () -> String) {
+  private fun runReturning(promise: Promise, block: () -> String) {
     if (!openCVReady) {
       promise.reject("opencv_unavailable", "OpenCV native library failed to initialize")
       return
     }
-    try {
-      promise.resolve(block())
-    } catch (t: Throwable) {
-      promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
+    executor.execute {
+      try {
+        promise.resolve(block())
+      } catch (t: Throwable) {
+        promise.reject(errorCode(t), t.message ?: t.javaClass.simpleName, t)
+      }
     }
   }
 
