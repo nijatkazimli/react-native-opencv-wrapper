@@ -21,7 +21,7 @@ object DistanceTransformOp : Op {
     }
     var maskSize = if (params.has("maskSize")) params.getInt("maskSize") else 3
     if (maskSize != 0 && maskSize != 3 && maskSize != 5) maskSize = 3
-    val normalize = if (params.has("normalize")) params.getBoolean("normalize") else true
+    val normalize = params.optBoolean("normalize", true)
 
     val gray = OpSupport.ensureGray(current)
     val bin = Mat()

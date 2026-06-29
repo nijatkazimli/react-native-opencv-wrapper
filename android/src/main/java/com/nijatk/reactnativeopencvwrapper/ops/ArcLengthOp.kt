@@ -13,7 +13,7 @@ object ArcLengthOp : DataOp {
   override val name = "arcLength"
 
   override fun analyze(current: Mat, params: JSONObject): JSONObject {
-    val closed = if (params.has("closed")) params.getBoolean("closed") else true
+    val closed = params.optBoolean("closed", true)
     val pts = AnalysisSupport.resolvePoints(current, params)
     val found = pts != null
     var length = 0.0

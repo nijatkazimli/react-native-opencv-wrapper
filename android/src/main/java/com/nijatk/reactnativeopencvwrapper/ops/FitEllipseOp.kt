@@ -14,10 +14,11 @@ object FitEllipseOp : DataOp {
 
   override fun analyze(current: Mat, params: JSONObject): JSONObject {
     val pts = AnalysisSupport.resolvePoints(current, params)
-    val ok = pts != null && pts.toArray().size >= 5
     var ellipse: JSONObject? = null
-    if (ok) {
-      val c2f = MatOfPoint2f(*pts!!.toArray())
+    var ok = false
+    if (pts != null && pts.toArray().size >= 5) {
+      ok = true
+      val c2f = MatOfPoint2f(*pts.toArray())
       val rr = Imgproc.fitEllipse(c2f)
       ellipse = JSONObject()
         .put("centerX", rr.center.x).put("centerY", rr.center.y)

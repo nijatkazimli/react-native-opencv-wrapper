@@ -4,11 +4,14 @@ import type { InputState, OutputState } from "../core/state";
 /** Distance metric for {@link Pipeline.distanceTransform}. */
 export type DistanceType = "L1" | "L2" | "C";
 
+/** Mask size for {@link Pipeline.distanceTransform}. */
+export type DistanceMaskSize = 0 | 3 | 5;
+
 declare module "../core/pipeline" {
   interface OpArgsMap {
     distanceTransform: [
       distanceType?: DistanceType,
-      maskSize?: 0 | 3 | 5,
+      maskSize?: DistanceMaskSize,
       normalize?: boolean,
     ];
   }
@@ -29,7 +32,7 @@ declare module "../core/pipeline" {
      */
     distanceTransform(
       distanceType?: DistanceType,
-      maskSize?: 0 | 3 | 5,
+      maskSize?: DistanceMaskSize,
       normalize?: boolean,
     ): Pipeline<Input, Output>;
   }
@@ -39,7 +42,7 @@ registerOp(
   "distanceTransform",
   (
     distanceType: DistanceType = "L2",
-    maskSize: 0 | 3 | 5 = 3,
+    maskSize: DistanceMaskSize = 3,
     normalize = true,
   ) => ({
     distanceType,
