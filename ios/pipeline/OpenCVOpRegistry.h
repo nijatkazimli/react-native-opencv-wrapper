@@ -120,6 +120,21 @@ cv::Scalar OpenCVColorScalar(NSArray *color, cv::Scalar fallback);
 /// `antialias` param; defaults to `YES` when absent.
 BOOL OpenCVAntialias(NSDictionary *params);
 
+/// Resolved stroke/fill style shared by the drawing ops.
+struct OpenCVDrawStyle {
+  cv::Scalar color;      // stroke color (BGR), defaults to red
+  int thickness;         // stroke thickness, >= 1
+  int lineType;          // cv::LINE_AA or cv::LINE_8
+  bool hasFill;          // YES when a fillColor was supplied
+  cv::Scalar fillColor;  // fill color (BGR), valid only when hasFill
+};
+
+/// Resolve the common drawing parameters (`color`, `thickness`, `antialias`,
+/// `fillColor`) for op `opName`. Returns NO and sets `*error` when `thickness`
+/// is missing or < 1.
+BOOL OpenCVResolveDrawStyle(NSDictionary *params, NSString *opName,
+                            OpenCVDrawStyle *out, NSError **error);
+
 /// Decode an image supplied as either a filesystem path (optionally `file://`)
 /// or a (data-URI or raw) base64 string. Tries `imread` first, then base64.
 /// Returns an empty `cv::Mat` and sets `*error` on failure.

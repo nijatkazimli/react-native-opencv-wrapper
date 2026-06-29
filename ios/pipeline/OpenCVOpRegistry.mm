@@ -74,6 +74,22 @@ BOOL OpenCVAntialias(NSDictionary *params) {
     return params[@"antialias"] ? [params[@"antialias"] boolValue] : YES;
 }
 
+BOOL OpenCVResolveDrawStyle(NSDictionary *params, NSString *opName,
+                            OpenCVDrawStyle *out, NSError **error) {
+    int thickness = [params[@"thickness"] intValue];
+    if (thickness < 1) {
+        if (error) *error = OpenCVMakeError([NSString stringWithFormat:@"%@ 'thickness' must be >= 1", opName]);
+        return NO;
+    }
+    out->color = OpenCVColorScalar(params[@"color"], cv::Scalar(0, 0, 255));
+    out->thickness = thickness;
+    out->lineType = OpenCVAntialias(params) ? cv::LINE_AA : cv::LINE_8;
+    out->hasFill = [params[@"fillColor"] isKindOfClass:[NSArray class]];
+    out->fillColor = out->hasFill ? OpenCVColorScalar(params[@"fillColor"], out->color)
+                                  : out->color;
+    return YES;
+}
+
 static std::string OpenCVPath(NSString *path) {
     return std::string([path UTF8String]);
 }

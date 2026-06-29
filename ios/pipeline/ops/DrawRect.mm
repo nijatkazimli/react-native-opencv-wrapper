@@ -12,21 +12,15 @@ OPENCV_REGISTER_OP(drawRect, @"drawRect",
         if (error) *error = OpenCVMakeError(@"drawRect 'width' and 'height' must be positive");
         return Mat();
     }
-    int thickness = [params[@"thickness"] intValue];
-    if (thickness < 1) {
-        if (error) *error = OpenCVMakeError(@"drawRect 'thickness' must be >= 1");
-        return Mat();
-    }
+    OpenCVDrawStyle style;
+    if (!OpenCVResolveDrawStyle(params, @"drawRect", &style, error)) return Mat();
     int x = [params[@"x"] intValue];
     int y = [params[@"y"] intValue];
-    cv::Scalar color = OpenCVColorScalar(params[@"color"], cv::Scalar(0, 0, 255));
-    int lineType = OpenCVAntialias(params) ? cv::LINE_AA : cv::LINE_8;
     Mat dst = current.clone();
     cv::Rect rect(x, y, width, height);
-    if ([params[@"fillColor"] isKindOfClass:[NSArray class]]) {
-        cv::Scalar fillColor = OpenCVColorScalar(params[@"fillColor"], color);
-        cv::rectangle(dst, rect, fillColor, cv::FILLED, lineType);
+    if (style.hasFill) {
+        cv::rectangle(dst, rect, style.fillColor, cv::FILLED, style.lineType);
     }
-    cv::rectangle(dst, rect, color, thickness, lineType);
+    cv::rectangle(dst, rect, style.color, style.thickness, style.lineType);
     return dst;
 });
