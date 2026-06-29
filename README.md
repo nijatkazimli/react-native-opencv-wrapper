@@ -124,7 +124,7 @@ URIs), and every async call resolves with the output path.
 ### Operations
 
 | Operation          | Method / function                                                    | Parameters                                                                                                                                                                                                                                                                       |
-| ------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Grayscale          | `gray()` (alias `toGray`)                                            | –                                                                                                                                                                                                                                                                                |
 | Gaussian blur      | `gaussianBlur(kernelSize, sigmaX?)`                                  | `kernelSize`: positive odd int; `sigmaX`: default `0` (derived from kernel)                                                                                                                                                                                                      |
 | Median blur        | `medianBlur(kernelSize)`                                             | `kernelSize`: positive odd int                                                                                                                                                                                                                                                   |
@@ -163,7 +163,12 @@ URIs), and every async call resolves with the output path.
 | Convert scale abs  | `convertScaleAbs(alpha?, beta?)`                                     | brightness/contrast `out = \|alpha·current + beta\|`, 8-bit saturated; `alpha` default `1`; `beta` default `0`                                                                                                                                                                   |
 | Lookup table       | `lut(map)`                                                           | per-pixel intensity remap (`cv::LUT`); `map`: a function `(x) => y` over `x = 0..255`, or a 256-entry table; outputs rounded and clamped to 0–255; the same table is applied to every channel (invert, gamma, posterize, solarize, custom curves)                                |
 | Debug capture      | `debug(path)`                                                        | `path`: absolute file path; writes the current intermediate image (encoder from the extension) and passes it through unchanged                                                                                                                                                   |
-| Scan document      | `scanDocument(options?)`                                             | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                                                                                                    |
+| Scan document      | `scanDocument(options?)`                                             | `options.mode` `"color"`\|`"gray"`\|`"bw"`, `options.aspectRatio` (detects the largest document-like quad and returns a top-down, perspective-corrected crop)                                                                                                                    |     | Distance transform | `distanceTransform(distanceType?, maskSize?, normalize?)` | distance of each foreground pixel to the nearest background pixel (Otsu-binarized first); `distanceType`: `"L2"` (default) \| `"L1"` \| `"C"`; `maskSize`: `0 \| 3 \| 5` (default `3`); `normalize`: stretch to 0–255 (default `true`); returns single-channel |
+| K-means quantize   | `kmeans(k?, attempts?, iterations?)`                                 | color-quantize to `k` representative colors; `k` ≥ 1 (default `8`); `attempts` default `3`; `iterations` default `10`                                                                                                                                                            |
+| GrabCut            | `grabCut(rect, iterations?)`                                         | extract the foreground seeded by `rect` `{x, y, width, height}`; background pixels become black; `iterations` default `5`                                                                                                                                                        |
+| Watershed          | `watershed(lineColor?)`                                              | marker-based segmentation with auto-derived markers; region boundaries are drawn onto the image; `lineColor`: boundary `[r, g, b]` (default red)                                                                                                                                 |
+| Draw contours      | `drawContours(options?)`                                             | detect external contours and outline them on a color copy; `options`: `{ color?, thickness?, minArea?, antialias? }` — `color` `[r, g, b]` (default green); `thickness` default `2`; `minArea` default `0`; `antialias` default `true`                                           |
+| Four-point warp    | `fourPointTransform(points, width?, height?)`                        | deskew/flatten the quadrilateral through four `[x, y]` `points` to a straight rectangle; `width`/`height` default to the current image size                                                                                                                                      |
 
 Analysis ops return structured data instead of an image and end the chain (no
 `output()`/`run()`):
@@ -179,6 +184,16 @@ Analysis ops return structured data instead of an image and end the chain (no
 | Bounding rect        | `boundingRect(options?)`        | `BoundingRectResult` — bbox of points or the largest contour                                                                           |
 | Min-area rect        | `minAreaRect(options?)`         | `MinAreaRectResult` — rotated bbox of points or the largest contour                                                                    |
 | Approx polygon       | `approxPolyDP(options?)`        | `ApproxPolyDPResult` — simplified polygon vertices                                                                                     |
+| Contour area         | `contourArea(options?)`         | `ContourAreaResult` — area + bounding size of points or the largest contour                                                            |
+| Arc length           | `arcLength(options?)`           | `ArcLengthResult` — perimeter/length of points or the largest contour (`closed?` default `true`)                                       |
+| Convex hull          | `convexHull(options?)`          | `ConvexHullResult` — convex hull vertices `{x, y}` of points or the largest contour                                                    |
+| Fit ellipse          | `fitEllipse(options?)`          | `FitEllipseResult` — best-fit ellipse `{centerX, centerY, width, height, angle}` (needs ≥ 5 points)                                    |
+| Fit line             | `fitLine(options?)`             | `FitLineResult` — best-fit line `{vx, vy, x0, y0}` of points or the largest contour                                                    |
+| Mean & std-dev       | `meanStdDev()`                  | `MeanStdDevResult` — per-channel mean and standard deviation                                                                           |
+| Min/max location     | `minMaxLoc()`                   | `MinMaxLocResult` — min/max intensity and their `{x, y}` locations (grayscaled first)                                                  |
+| Count non-zero       | `countNonZero()`                | `CountNonZeroResult` — non-zero pixel count, total, and ratio (grayscaled first)                                                       |
+| Histogram            | `calcHist(options?)`            | `CalcHistResult` — intensity histogram; `options`: `{ bins?, channel? }` (defaults `256`, `0`)                                         |
+| Match template       | `matchTemplate(options)`        | `MatchTemplateResult` — best match `{location, score}` of a smaller `template` image; `options`: `{ template, method? }`               |
 
 ### Standalone
 
@@ -221,6 +236,12 @@ import {
   scharr,
   laplacian,
   sepFilter2D,
+  distanceTransform,
+  kmeans,
+  grabCut,
+  watershed,
+  drawContours,
+  fourPointTransform,
 } from "@nijatk/react-native-opencv-wrapper";
 
 const input = "/abs/path/input.png";
@@ -311,6 +332,19 @@ await sobel(input, output, 1, 0, 3); // ∂/∂x with a 3×3 kernel (absolute)
 await scharr(input, output, 0, 1); // ∂/∂y, sharper 3×3 derivative
 await laplacian(input, output, 3); // second-derivative edges, ksize 3
 await sepFilter2D(input, output, [1, 0, -1], [1, 2, 1]); // separable Sobel-X
+
+// Segmentation & geometry
+await distanceTransform(input, output, "L2"); // distance map
+await kmeans(input, output, 4); // quantize to 4 colors
+await grabCut(input, output, { x: 20, y: 20, width: 120, height: 120 }); // cut out foreground
+await watershed(input, output, [255, 0, 0]); // segment & draw boundaries
+await drawContours(input, output, { color: [0, 255, 0] }); // outline external contours
+await fourPointTransform(input, output, [
+  [10, 10],
+  [200, 20],
+  [190, 260],
+  [5, 250],
+]); // deskew a quad to a straight rectangle
 ```
 
 > `toGray(input, output)` is kept as an alias of `gray(input, output)`.
@@ -712,6 +746,87 @@ analyse the largest external contour of the binary image. See the exported
 `ConnectedComponentsResult`, `HoughLinesResult`, `HoughCirclesResult`,
 `BoundingRectResult`, `MinAreaRectResult`, and `ApproxPolyDPResult` types for
 full shapes.
+
+#### Contour metrics
+
+`contourArea()`, `arcLength()`, `convexHull()`, `fitEllipse()`, and `fitLine()`
+measure a single shape. Like `boundingRect`/`minAreaRect`/`approxPolyDP`, they
+accept an explicit `points: [x, y][]`; when omitted they analyse the largest
+external contour of the binary image:
+
+```ts
+const m = await pipeline().input(mask).gray().threshold(128, 255).contourArea();
+console.log(m.area, m.width, m.height);
+
+const hull = await pipeline()
+  .input(mask)
+  .gray()
+  .threshold(128, 255)
+  .convexHull();
+console.log(hull.hull); // [{ x, y }, ...] convex outline
+
+// fits — fitEllipse needs ≥ 5 points
+const e = await pipeline().input(mask).gray().threshold(128, 255).fitEllipse();
+if (e.ellipse) console.log(e.ellipse.angle);
+const l = await pipeline().input(mask).gray().threshold(128, 255).fitLine();
+if (l.line) console.log(l.line.vx, l.line.vy);
+
+// perimeter of an open polyline from explicit points
+const arc = await pipeline()
+  .input(photo)
+  .arcLength({
+    points: [
+      [0, 0],
+      [30, 0],
+      [30, 40],
+    ],
+    closed: false,
+  });
+console.log(arc.length); // 70
+```
+
+#### Image statistics
+
+`meanStdDev()`, `minMaxLoc()`, `countNonZero()`, and `calcHist()` summarise
+pixel values over the whole image (no points argument):
+
+```ts
+const stats = await pipeline().input(photo).meanStdDev();
+console.log(stats.mean, stats.stddev); // per-channel arrays
+
+const ext = await pipeline().input(photo).gray().minMaxLoc();
+console.log(ext.min, ext.max, ext.maxLoc); // brightest pixel location
+
+const nz = await pipeline()
+  .input(mask)
+  .gray()
+  .threshold(128, 255)
+  .countNonZero();
+console.log(nz.count, nz.ratio); // foreground coverage
+
+const hist = await pipeline().input(photo).calcHist({ bins: 64, channel: 0 });
+console.log(hist.histogram.length); // 64
+```
+
+#### Template matching
+
+`matchTemplate({ template, method? })` locates a smaller `template` image
+(file path or base64) within the current image and returns the best match:
+
+```ts
+const match = await pipeline()
+  .input("/abs/scene.png")
+  .matchTemplate({ template: "/abs/logo.png", method: "ccoeffNormed" });
+if (match.found && match.location) {
+  console.log(match.location, match.score);
+}
+```
+
+`method` is one of `"sqdiff"`, `"sqdiffNormed"`, `"ccorr"`, `"ccorrNormed"`,
+`"ccoeff"`, or `"ccoeffNormed"` (default). See the exported `ContourAreaResult`,
+`ArcLengthResult`, `ConvexHullResult`, `FitEllipseResult`, `FitLineResult`,
+`MeanStdDevResult`, `MinMaxLocResult`, `CountNonZeroResult`, `CalcHistResult`,
+and `MatchTemplateResult` types for full shapes.
 
 ### Dynamic single ops
 

@@ -215,6 +215,45 @@ const DEMOS: readonly Demo[] = [
     configure: (p) => p.gray().sepFilter2D([1, 0, -1], [1, 2, 1]),
   },
   {
+    label: "Distance",
+    configure: (p) => p.resize(256, 256, "area").distanceTransform("L2"),
+  },
+  { label: "K-Means", configure: (p) => p.resize(256, 256, "area").kmeans(4) },
+  {
+    label: "GrabCut",
+    configure: (p) =>
+      p
+        .resize(256, 256, "area")
+        .grabCut({ x: 40, y: 40, width: 176, height: 176 }, 3),
+  },
+  {
+    label: "Watershed",
+    configure: (p) => p.resize(256, 256, "area").watershed([255, 0, 0]),
+  },
+  {
+    label: "Contours",
+    configure: (p) =>
+      p
+        .resize(256, 256, "area")
+        .gray()
+        .threshold(127, 255, "binary")
+        .drawContours({ color: [57, 255, 20], thickness: 2 }),
+  },
+  {
+    label: "4-Point",
+    configure: (p) =>
+      p.resize(256, 256, "area").fourPointTransform(
+        [
+          [40, 0],
+          [216, 0],
+          [256, 256],
+          [0, 256],
+        ],
+        256,
+        256,
+      ),
+  },
+  {
     label: "Pipeline",
     configure: (p) =>
       p.resize(128, 128, "area").gray().gaussianBlur(7).canny(50, 150),
@@ -477,6 +516,48 @@ export default function App() {
     }
   }, []);
 
+  const runMeasureDemo = useCallback(async () => {
+    try {
+      // Metrics of the largest contour in the document photo.
+      const base = () =>
+        pipeline().inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64).gray();
+      const area = await base().threshold(120, 255).contourArea();
+      const arc = await base().threshold(120, 255).arcLength();
+      const hull = await base().threshold(120, 255).convexHull();
+      // Whole-image statistics.
+      const stats = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .meanStdDev();
+      const nz = await base().threshold(120, 255).countNonZero();
+      // Visualize: outline the detected contours on the original.
+      const outBase64 = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .outputBase64("png")
+        .gray()
+        .threshold(120, 255)
+        .drawContours({ color: [57, 255, 20], thickness: 4, minArea: 500 })
+        .run();
+      const mean = stats.mean.map((m) => m.toFixed(0)).join(",");
+      setResults((r) => [
+        {
+          id: `measure-${Date.now()}`,
+          label: "Measure",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+          captions: { left: "original", right: "contours" },
+          note:
+            `area ${area.area.toFixed(0)}px\u00b2 \u00b7 perimeter ${arc.length.toFixed(
+              0,
+            )}px \u00b7 hull ${hull.hull.length} pts \u00b7 ` +
+            `mean [${mean}] \u00b7 fg ${(nz.ratio * 100).toFixed(1)}%`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Measure: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -500,6 +581,7 @@ export default function App() {
         <Button label="Scan B&W" onPress={runScanBwDemo} />
         <Button label="Detect Document" onPress={runDetectDocumentDemo} />
         <Button label="Find Shapes" onPress={runFindShapesDemo} />
+        <Button label="Measure" onPress={runMeasureDemo} />
       </View>
 
       {results.map((r) => (

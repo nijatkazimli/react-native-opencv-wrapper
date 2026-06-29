@@ -4,19 +4,15 @@
 
 using cv::Mat;
 
-// Axis-aligned bounding box of explicit points, or of the largest contour.
-OPENCV_REGISTER_DATA_OP(boundingRect, @"boundingRect",
+// Enclosed area of explicit points, or of the largest contour.
+OPENCV_REGISTER_DATA_OP(contourArea, @"contourArea",
                         ^NSDictionary *(const Mat &current, NSDictionary *params, NSError **error) {
     std::vector<cv::Point> pts;
     bool found = OpenCVResolvePoints(current, params, pts);
-    id box = [NSNull null];
-    if (found) {
-        cv::Rect r = cv::boundingRect(pts);
-        box = @{ @"x": @(r.x), @"y": @(r.y), @"width": @(r.width), @"height": @(r.height) };
-    }
+    double area = found ? cv::contourArea(pts) : 0.0;
     return @{
         @"found": @(found),
-        @"boundingBox": box,
+        @"area": @(area),
         @"width": @(current.cols),
         @"height": @(current.rows),
     };

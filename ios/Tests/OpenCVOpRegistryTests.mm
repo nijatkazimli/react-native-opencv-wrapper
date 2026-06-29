@@ -1804,4 +1804,365 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertEqual(pixel[2], 0);
 }
 
+#pragma mark - Contour-metric data ops
+
+- (void)testContourAreaMeasuresLargestContour {
+  NSString *input = [self writeShapesImage:@"area-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"contourArea\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"contourArea failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertGreaterThan([parsed[@"area"] doubleValue], 5000.0);
+  XCTAssertGreaterThan([parsed[@"width"] intValue], 50);
+}
+
+- (void)testArcLengthMeasuresPerimeter {
+  NSString *input = [self writeShapesImage:@"arc-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"arcLength\",\"closed\":true}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"arcLength failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertGreaterThan([parsed[@"length"] doubleValue], 100.0);
+}
+
+- (void)testArcLengthAcceptsExplicitOpenPolyline {
+  NSString *input = [self writeShapesImage:@"arc-pts-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"arcLength\",\"closed\":false,\"points\":[[0,0],[30,0],[30,40]]}]"
+                             error:&error];
+  XCTAssertNil(error, @"arcLength failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  // 30 + 40 == 70 for an open polyline.
+  XCTAssertEqualWithAccuracy([parsed[@"length"] doubleValue], 70.0, 0.001);
+}
+
+- (void)testConvexHullReturnsHullPoints {
+  NSString *input = [self writeShapesImage:@"hull-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"convexHull\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"convexHull failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  NSArray *hull = parsed[@"hull"];
+  XCTAssertGreaterThanOrEqual(hull.count, 4u);
+  XCTAssertNotNil(hull[0][@"x"]);
+}
+
+- (void)testFitEllipseReturnsEllipseForExplicitPoints {
+  NSString *input = [self writeShapesImage:@"ellipse-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  // fitEllipse needs >= 5 points; a CHAIN_APPROX rectangle only has 4.
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"fitEllipse\",\"points\":[[10,10],[60,12],[64,40],[40,64],[8,40]]}]"
+                             error:&error];
+  XCTAssertNil(error, @"fitEllipse failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  NSDictionary *ellipse = parsed[@"ellipse"];
+  XCTAssertNotNil(ellipse[@"centerX"]);
+  XCTAssertGreaterThan([ellipse[@"width"] doubleValue], 0.0);
+}
+
+- (void)testFitLineReturnsDirectionAndPoint {
+  NSString *input = [self writeShapesImage:@"line-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"fitLine\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"fitLine failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertNotNil(parsed[@"line"][@"vx"]);
+}
+
+#pragma mark - Image-statistics data ops
+
+- (void)testMeanStdDevOnUniformImageHasZeroSpread {
+  NSString *input = [self writeSourceImage:@"mean-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"meanStdDev\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"meanStdDev failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"channels"], @3);
+  XCTAssertEqualWithAccuracy([parsed[@"stddev"][0] doubleValue], 0.0, 0.001);
+}
+
+- (void)testMinMaxLocOnUniformImageHasEqualExtremes {
+  NSString *input = [self writeSourceImage:@"minmax-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"minMaxLoc\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"minMaxLoc failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualWithAccuracy([parsed[@"min"] doubleValue], [parsed[@"max"] doubleValue], 0.001);
+  XCTAssertNotNil(parsed[@"maxLoc"][@"x"]);
+}
+
+- (void)testCountNonZeroReportsRatio {
+  NSString *input = [self writeShapesImage:@"nonzero-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"countNonZero\"}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"countNonZero failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertGreaterThan([parsed[@"count"] intValue], 0);
+  double ratio = [parsed[@"ratio"] doubleValue];
+  XCTAssertGreaterThan(ratio, 0.0);
+  XCTAssertLessThan(ratio, 1.0);
+}
+
+- (void)testCalcHistDefaultsToFullRange {
+  NSString *input = [self writeSourceImage:@"hist-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"calcHist\",\"bins\":256,\"channel\":0}]"
+                                                             error:&error];
+  XCTAssertNil(error, @"calcHist failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"bins"], @256);
+  XCTAssertEqual([parsed[@"histogram"] count], 256u);
+}
+
+#pragma mark - Template matching
+
+- (void)testMatchTemplateLocatesPattern {
+  NSString *scene = [self writeShapesImage:@"tmpl-scene.png"];
+  cv::Mat tmpl(60, 60, CV_8UC3, cv::Scalar(0, 0, 0));
+  cv::rectangle(tmpl, cv::Point(0, 0), cv::Point(40, 40), cv::Scalar(255, 255, 255), -1);
+  NSString *tmplPath = [self outputPath:@"tmpl-patch.png"];
+  XCTAssertTrue(cv::imwrite(tmplPath.UTF8String, tmpl));
+
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", scene];
+  NSString *ops = [NSString
+      stringWithFormat:@"[{\"type\":\"matchTemplate\",\"template\":\"%@\",\"method\":\"ccoeffNormed\"}]",
+                       tmplPath];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:ops
+                                                             error:&error];
+  XCTAssertNil(error, @"matchTemplate failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertEqualObjects(parsed[@"templateWidth"], @60);
+  XCTAssertNotNil(parsed[@"location"][@"x"]);
+}
+
+- (void)testMatchTemplateRejectsMissingTemplate {
+  NSString *scene = [self writeShapesImage:@"tmpl-bad-scene.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", scene];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                           opsJson:@"[{\"type\":\"matchTemplate\",\"template\":\"\"}]"
+                                                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+#pragma mark - Segmentation transform ops
+
+- (void)testDistanceTransformProducesSingleChannel {
+  NSString *input = [self writeShapesImage:@"dist-in.png"];
+  NSString *output = [self outputPath:@"dist-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"distanceTransform\",\"distanceType\":\"L2\",\"maskSize\":3,\"normalize\":true}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"distanceTransform failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 1);
+  XCTAssertEqual(result.cols, 320);
+  XCTAssertEqual(result.rows, 240);
+}
+
+- (void)testKmeansQuantizesColors {
+  NSString *input = [self writeSourceImage:@"kmeans-in.png"];
+  NSString *output = [self outputPath:@"kmeans-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"kmeans\",\"k\":2,\"attempts\":1,\"iterations\":5}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"kmeans failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+}
+
+- (void)testGrabCutPreservesDimensions {
+  NSString *input = [self writeShapesImage:@"grabcut-in.png"];
+  NSString *output = [self outputPath:@"grabcut-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"grabCut\",\"rect\":{\"x\":20,\"y\":20,\"width\":100,\"height\":100},\"iterations\":2}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"grabCut failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, 320);
+  XCTAssertEqual(result.rows, 240);
+}
+
+- (void)testGrabCutRejectsMissingRect {
+  NSString *input = [self writeShapesImage:@"grabcut-bad-in.png"];
+  NSString *output = [self outputPath:@"grabcut-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry runPipelineWithInput:input
+                                            output:output
+                                           opsJson:@"[{\"type\":\"grabCut\"}]"
+                                             error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
+- (void)testWatershedPreservesDimensions {
+  NSString *input = [self writeShapesImage:@"watershed-in.png"];
+  NSString *output = [self outputPath:@"watershed-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"watershed\",\"lineColor\":[255,0,0]}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"watershed failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, 320);
+  XCTAssertEqual(result.rows, 240);
+}
+
+#pragma mark - Ergonomic transform ops
+
+- (void)testDrawContoursOutlinesShapes {
+  NSString *input = [self writeShapesImage:@"draw-in.png"];
+  NSString *output = [self outputPath:@"draw-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"drawContours\",\"color\":[0,255,0],\"thickness\":2,\"minArea\":0,\"antialias\":true}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"drawContours failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, 320);
+  XCTAssertEqual(result.rows, 240);
+}
+
+- (void)testFourPointTransformIdentityPreservesImage {
+  NSString *input = [self writeSourceImage:@"fpt-in.png"];
+  NSString *output = [self outputPath:@"fpt-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"fourPointTransform\",\"points\":[[0,0],[39,0],[39,59],[0,59]],\"width\":40,\"height\":60}]"
+                     error:&error];
+  XCTAssertTrue(ok, @"fourPointTransform failed: %@", error);
+
+  cv::Mat result = [self readResult:output];
+  XCTAssertEqual(result.channels(), 3);
+  XCTAssertEqual(result.cols, kWidth);
+  XCTAssertEqual(result.rows, kHeight);
+  cv::Vec3b pixel = result.at<cv::Vec3b>(0, 0);
+  XCTAssertEqual(pixel[0], 10);
+  XCTAssertEqual(pixel[1], 20);
+  XCTAssertEqual(pixel[2], 30);
+}
+
+- (void)testFourPointTransformRejectsTooFewPoints {
+  NSString *input = [self writeSourceImage:@"fpt-bad-in.png"];
+  NSString *output = [self outputPath:@"fpt-bad-out.png"];
+
+  NSError *error = nil;
+  BOOL ok = [OpenCVOpRegistry
+      runPipelineWithInput:input
+                    output:output
+                   opsJson:@"[{\"type\":\"fourPointTransform\",\"points\":[[0,0],[39,0],[39,59]]}]"
+                     error:&error];
+  XCTAssertFalse(ok);
+  XCTAssertNotNil(error);
+  XCTAssertEqualObjects(error.userInfo[OpenCVErrorCodeKey], OpenCVErrorInvalidArgument);
+}
+
 @end
