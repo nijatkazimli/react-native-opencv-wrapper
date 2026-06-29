@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /**
  * Color-space conversions accepted by {@link Pipeline.cvtColor}. Each value
@@ -44,4 +45,22 @@ declare module "../core/pipeline" {
   }
 }
 
+export const cvtColorDoc: OpDoc = {
+  name: "Color Space Conversion",
+  category: "color-channels",
+  kind: "image",
+  method: "cvtColor(code: ColorConversion): Pipeline",
+  standalone: "cvtColor(input, output, code)",
+  desc: "Color-space conversion escape hatch. Input images are decoded as BGR; pair with inRange for HSV/Lab masking.",
+  params: [
+    {
+      name: "code",
+      type: '"BGR2GRAY" | "GRAY2BGR" | "BGR2RGB" | "RGB2BGR" | "BGR2HSV" | "HSV2BGR" | "BGR2HLS" | "HLS2BGR" | "BGR2Lab" | "Lab2BGR" | "BGR2YCrCb" | "YCrCb2BGR"',
+      req: true,
+      def: null,
+      desc: "Conversion code; the source layout must match the <from> half.",
+    },
+  ],
+  notes: "Input images are always decoded as BGR.",
+};
 registerOp("cvtColor", (code: ColorConversion) => ({ code }));

@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.houghCircles}. */
 export interface HoughCirclesOptions {
@@ -51,6 +52,67 @@ declare module "../core/pipeline" {
   }
 }
 
+export const houghCirclesDoc: OpDoc = {
+  name: "Hough Circle Detection",
+  category: "feature-detection",
+  kind: "data",
+  method:
+    "houghCircles(options?: { dp?: number; minDist?: number; param1?: number; param2?: number; minRadius?: number; maxRadius?: number }): Promise<HoughCirclesResult>",
+  standalone: null,
+  desc: "Detect circles with the Hough gradient method. Operates on grayscale (converted automatically). A prior gaussianBlur() reduces false positives.",
+  params: [
+    {
+      name: "options.dp",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Inverse accumulator resolution ratio.",
+    },
+    {
+      name: "options.minDist",
+      type: "number",
+      req: false,
+      def: "20",
+      desc: "Minimum distance between detected circle centers (px).",
+    },
+    {
+      name: "options.param1",
+      type: "number",
+      req: false,
+      def: "100",
+      desc: "Upper Canny threshold used internally.",
+    },
+    {
+      name: "options.param2",
+      type: "number",
+      req: false,
+      def: "30",
+      desc: "Accumulator threshold for centers (smaller finds more).",
+    },
+    {
+      name: "options.minRadius",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Minimum circle radius (px); 0 = no minimum.",
+    },
+    {
+      name: "options.maxRadius",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Maximum circle radius (px); 0 = no maximum.",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  count: number,
+  circles: Array<{ x, y, radius }>,
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("houghCircles", (options: HoughCirclesOptions = {}) => {
   const {
     dp = 1,

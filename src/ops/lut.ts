@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /**
  * A per-pixel intensity remap for `lut`. Either a function `y = f(x)` evaluated
@@ -48,4 +49,23 @@ declare module "../core/pipeline" {
   }
 }
 
+export const lutDoc: OpDoc = {
+  name: "Lookup Table (Per-Pixel Remap)",
+  category: "histogram-tone",
+  kind: "image",
+  method: "lut(map: ((x: number) => number) | readonly number[]): Pipeline",
+  standalone: "lut(input, output, map)",
+  desc: "Per-pixel intensity remap — the point-transform escape hatch for invert, gamma, posterize, solarize, and custom curves. The same table is applied to all channels.",
+  params: [
+    {
+      name: "map",
+      type: "((x: number) => number) | readonly number[]",
+      req: true,
+      def: null,
+      desc: "A function y = f(x) for x = 0..255, or a precomputed 256-entry table.",
+    },
+  ],
+  notes:
+    "Output values are rounded and clamped to 0–255; an array map must have exactly 256 entries. Adjacent lut/bitwiseNot ops are fused into one native pass automatically.",
+};
 registerOp("lut", (map: LutMap) => ({ table: buildLutTable(map) }));

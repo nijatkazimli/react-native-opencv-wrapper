@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Normalization mode for {@link Pipeline.normalize}. */
 export type NormType = "minmax" | "l1" | "l2" | "inf";
@@ -31,6 +32,39 @@ declare module "../core/pipeline" {
   }
 }
 
+export const normalizeDoc: OpDoc = {
+  name: "Intensity Normalization",
+  category: "histogram-tone",
+  kind: "image",
+  method:
+    'normalize(alpha?: number, beta?: number, normType?: "minmax" | "l1" | "l2" | "inf"): Pipeline',
+  standalone: "normalize(input, output, alpha?, beta?, normType?)",
+  desc: "Intensity normalization. minmax stretches to [alpha, beta]; norms scale so the array norm equals alpha.",
+  params: [
+    {
+      name: "alpha",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Lower bound (minmax) or target norm value (l1/l2/inf).",
+    },
+    {
+      name: "beta",
+      type: "number",
+      req: false,
+      def: "255",
+      desc: "Upper bound (minmax only; ignored for norms).",
+    },
+    {
+      name: "normType",
+      type: '"minmax" | "l1" | "l2" | "inf"',
+      req: false,
+      def: '"minmax"',
+      desc: "Normalization mode.",
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "normalize",
   (alpha = 0, beta = 255, normType: NormType = "minmax") => ({

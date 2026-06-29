@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -36,4 +37,22 @@ declare module "../core/pipeline" {
   }
 }
 
+export const debugDoc: OpDoc = {
+  name: "Debug Capture",
+  category: "other",
+  kind: "image",
+  method: "debug(path: string): Pipeline",
+  standalone: null,
+  desc: "A pass-through tap: writes the current intermediate image to path and continues unchanged. The encoder is chosen from the file extension.",
+  params: [
+    {
+      name: "path",
+      type: "string",
+      req: true,
+      def: null,
+      desc: "Absolute file path to write the intermediate image to.",
+    },
+  ],
+  notes: "Side effect only; the pipeline output does not change.",
+};
 registerOp("debug", (path: string) => ({ path }));

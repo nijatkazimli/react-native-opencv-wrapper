@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Structured result of a {@link Pipeline.countNonZero} analysis. */
 export interface CountNonZeroResult {
@@ -29,4 +30,21 @@ declare module "../core/pipeline" {
   }
 }
 
+export const countNonZeroDoc: OpDoc = {
+  name: "Count Non-Zero Pixels",
+  category: "analysis-measurement",
+  kind: "data",
+  method: "countNonZero(): Promise<CountNonZeroResult>",
+  standalone: null,
+  desc: "Count non-zero pixels (e.g. the foreground area of a binary mask). The image is grayscaled first.",
+  params: [],
+  returns: `{
+  count: number,
+  total: number,
+  ratio: number,   // count / total in [0, 1]
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("countNonZero", () => ({}));

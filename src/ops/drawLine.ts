@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 import type { Color } from "./drawRect";
 
 /** Styling options for {@link Pipeline.drawLine}. */
@@ -48,6 +49,43 @@ declare module "../core/pipeline" {
   }
 }
 
+export const drawLineDoc: OpDoc = {
+  name: "Draw Line",
+  category: "drawing",
+  kind: "image",
+  method:
+    "drawLine(x1: number, y1: number, x2: number, y2: number, options?: { color?: [r, g, b]; thickness?: number; antialias?: boolean }): Pipeline",
+  standalone: "drawLine(input, output, x1, y1, x2, y2, options?)",
+  desc: "Draw a line segment on the current image. Connect landmarks; image is passed on unchanged.",
+  params: [
+    { name: "x1", type: "number", req: true, def: null, desc: "Start X (px)." },
+    { name: "y1", type: "number", req: true, def: null, desc: "Start Y (px)." },
+    { name: "x2", type: "number", req: true, def: null, desc: "End X (px)." },
+    { name: "y2", type: "number", req: true, def: null, desc: "End Y (px)." },
+    {
+      name: "options.color",
+      type: "[r, g, b]",
+      req: false,
+      def: "[255, 0, 0]",
+      desc: "Stroke color (0–255 each).",
+    },
+    {
+      name: "options.thickness",
+      type: "number",
+      req: false,
+      def: "2",
+      desc: "Stroke width (px, ≥ 1).",
+    },
+    {
+      name: "options.antialias",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Smooth edges.",
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "drawLine",
   (

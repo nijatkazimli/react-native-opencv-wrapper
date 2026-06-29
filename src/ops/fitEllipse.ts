@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.fitEllipse}. */
 export interface FitEllipseOptions {
@@ -46,6 +47,31 @@ declare module "../core/pipeline" {
   }
 }
 
+export const fitEllipseDoc: OpDoc = {
+  name: "Fit Ellipse",
+  category: "contours-shape",
+  kind: "data",
+  method:
+    "fitEllipse(options?: { points?: [x, y][] }): Promise<FitEllipseResult>",
+  standalone: null,
+  desc: "Best-fit ellipse expressed as a bounding rotated rectangle. Requires at least 5 points.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used (needs ≥ 5 points).",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  ellipse: { centerX, centerY, width, height, angle } | null,
+  width: number,
+  height: number
+}`,
+  notes: "Requires at least 5 points.",
+};
 registerDataOp("fitEllipse", (options: FitEllipseOptions = {}) => {
   const params: Record<string, unknown> = {};
   if (options.points) {

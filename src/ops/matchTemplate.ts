@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Comparison method for {@link Pipeline.matchTemplate} (`cv::matchTemplate`). */
 export type TemplateMatchMethod =
@@ -57,6 +58,41 @@ declare module "../core/pipeline" {
   }
 }
 
+export const matchTemplateDoc: OpDoc = {
+  name: "Template Matching",
+  category: "feature-detection",
+  kind: "data",
+  method:
+    'matchTemplate(options: { template: string; method?: "sqdiff" | "sqdiffNormed" | "ccorr" | "ccorrNormed" | "ccoeff" | "ccoeffNormed" }): Promise<MatchTemplateResult>',
+  standalone: null,
+  desc: "Locate a smaller template image within the current image; return the best match location and score.",
+  params: [
+    {
+      name: "options.template",
+      type: "string",
+      req: true,
+      def: null,
+      desc: "Smaller template image (file path or base64); must be ≤ the current image size.",
+    },
+    {
+      name: "options.method",
+      type: '"sqdiff" | "sqdiffNormed" | "ccorr" | "ccorrNormed" | "ccoeff" | "ccoeffNormed"',
+      req: false,
+      def: '"ccoeffNormed"',
+      desc: "Comparison method (sqdiff* lower is better; others higher is better).",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  score: number,
+  location: { x, y } | null,
+  templateWidth: number,
+  templateHeight: number,
+  width: number,
+  height: number
+}`,
+  notes: "Normed methods score in [0, 1] (or [-1, 1] for ccoeffNormed).",
+};
 registerDataOp("matchTemplate", (options: MatchTemplateOptions) => {
   const { template, method = "ccoeffNormed" } = options;
   return { template, method };

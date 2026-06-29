@@ -75,9 +75,10 @@
     "react-native": "*"
   },
   "scripts": {
-    "build": "bob build",
+    "build": "bob build && node scripts/strip-doc-exports.mjs",
     "prepare": "husky",
-    "prepublishOnly": "npm run build",
+    "docs:gen": "node scripts/gen-docs-data.mjs && prettier --write docs/data.js",
+    "prepublishOnly": "npm run docs:gen && npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",

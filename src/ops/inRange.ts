@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -28,6 +29,32 @@ declare module "../core/pipeline" {
   }
 }
 
+export const inRangeDoc: OpDoc = {
+  name: "In-Range Mask",
+  category: "thresholding",
+  kind: "image",
+  method:
+    "inRange(lower: readonly number[], upper: readonly number[]): Pipeline",
+  standalone: "inRange(input, output, lower, upper)",
+  desc: "Per-channel range check producing a single-channel binary mask (255 inside, 0 outside). Pair with cvtColor to mask by color (e.g. HSV green).",
+  params: [
+    {
+      name: "lower",
+      type: "readonly number[]",
+      req: true,
+      def: null,
+      desc: "Inclusive lower bound per channel (1–4 numbers).",
+    },
+    {
+      name: "upper",
+      type: "readonly number[]",
+      req: true,
+      def: null,
+      desc: "Inclusive upper bound per channel (same length as lower).",
+    },
+  ],
+  notes: "lower and upper must be the same length; typically 3 for BGR.",
+};
 registerOp("inRange", (lower: readonly number[], upper: readonly number[]) => ({
   lower,
   upper,

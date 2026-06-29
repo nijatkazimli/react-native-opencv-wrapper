@@ -1,6 +1,7 @@
 import { pipeline, registerOp } from "../core/pipeline";
 import type { Pipeline } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /**
  * The sub-pipeline builder handed to {@link Pipeline.applyMask}. Chain
@@ -47,6 +48,25 @@ declare module "../core/pipeline" {
   }
 }
 
+export const applyMaskDoc: OpDoc = {
+  name: "Apply Mask (Segment & Keep)",
+  category: "masking-bitwise",
+  kind: "image",
+  method: "applyMask(build: (mask: Pipeline) => Pipeline): Pipeline",
+  standalone: null,
+  desc: "Keep only the pixels selected by a mask (derived by chaining ops on a sub-pipeline copy), zeroing the rest. The original image — not the mask — flows out. Closes the loop for inRange/cvtColor segmentation in a single pass.",
+  params: [
+    {
+      name: "build",
+      type: "(mask: Pipeline) => Pipeline",
+      req: true,
+      def: null,
+      desc: "Sub-pipeline builder; receives a fresh pipeline over a copy of the current image and must yield a single-channel mask of the same size.",
+    },
+  ],
+  notes:
+    "The sub-pipeline must yield a single-channel mask the same size as the current image.",
+};
 registerOp("applyMask", (build: (mask: MaskBuilder) => MaskBuilder) => {
   const sub = pipeline();
   build(sub);

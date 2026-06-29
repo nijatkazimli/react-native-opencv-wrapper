@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** A single corner point of a detected QR code, in pixel coordinates. */
 export interface QRCorner {
@@ -46,4 +47,21 @@ declare module "../core/pipeline" {
   }
 }
 
+export const decodeQRDoc: OpDoc = {
+  name: "Decode QR Codes",
+  category: "feature-detection",
+  kind: "data",
+  method: "decodeQR(): Promise<DecodeQRResult>",
+  standalone: null,
+  desc: "Detect and decode every QR code in the image. Returns corner points (TL, TR, BR, BL) and the decoded text payload (which may be empty if a code is located but not decodable).",
+  params: [],
+  returns: `{
+  found: boolean,
+  codes: Array<{
+    value: string,
+    corners: [ {x,y}, {x,y}, {x,y}, {x,y} ]
+  }>
+}`,
+  notes: "Requires OpenCV ≥ 4.3.0; rejects with opencv_unavailable if too old.",
+};
 registerDataOp("decodeQR");

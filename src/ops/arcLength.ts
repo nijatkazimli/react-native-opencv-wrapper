@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.arcLength}. */
 export interface ArcLengthOptions {
@@ -38,6 +39,33 @@ declare module "../core/pipeline" {
   }
 }
 
+export const arcLengthDoc: OpDoc = {
+  name: "Arc Length / Perimeter",
+  category: "contours-shape",
+  kind: "data",
+  method:
+    "arcLength(options?: { points?: [x, y][]; closed?: boolean }): Promise<ArcLengthResult>",
+  standalone: null,
+  desc: "Perimeter (or curve length) of the given points or the largest contour.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used.",
+    },
+    {
+      name: "options.closed",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Treat the point set as a closed curve.",
+    },
+  ],
+  returns: `{ found: boolean, length: number, width: number, height: number }`,
+  notes: null,
+};
 registerDataOp("arcLength", (options: ArcLengthOptions = {}) => {
   const { closed = true } = options;
   const params: Record<string, unknown> = { closed };

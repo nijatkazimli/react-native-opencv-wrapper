@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** A single corner of a detected document, in source-image pixel coordinates. */
 export interface DocumentCorner {
@@ -54,4 +55,21 @@ declare module "../core/pipeline" {
   }
 }
 
+export const detectDocumentDoc: OpDoc = {
+  name: "Detect Document Corners",
+  category: "document",
+  kind: "data",
+  method: "detectDocument(): Promise<DetectDocumentResult>",
+  standalone: null,
+  desc: "Locate the largest document-like quadrilateral WITHOUT warping; returns four corner points (TL, TR, BR, BL). Suits live edge overlays — a missing document is not an error.",
+  params: [],
+  returns: `{
+  found: boolean,
+  corners: [ {x,y}, {x,y}, {x,y}, {x,y} ],  // [] when not found
+  width: number,
+  height: number
+}`,
+  notes:
+    "Uses the same detector as scanDocument; resolves with found: false instead of rejecting.",
+};
 registerDataOp("detectDocument");

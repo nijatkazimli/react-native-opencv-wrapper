@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 import type { Color } from "./drawRect";
 
 /** Pixel-extrapolation mode for {@link Pipeline.copyMakeBorder}. */
@@ -58,6 +59,61 @@ declare module "../core/pipeline" {
   }
 }
 
+export const copyMakeBorderDoc: OpDoc = {
+  name: "Copy Make Border (Padding)",
+  category: "geometry-transforms",
+  kind: "image",
+  method:
+    'copyMakeBorder(top: number, bottom: number, left: number, right: number, options?: { borderType?: "constant" | "replicate" | "reflect" | "reflect101" | "wrap"; color?: [r, g, b] }): Pipeline',
+  standalone:
+    "copyMakeBorder(input, output, top, bottom, left, right, options?)",
+  desc: "Pad the image with margins. Handy before convolution or to letterbox.",
+  params: [
+    {
+      name: "top",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Pixels added above (≥ 0).",
+    },
+    {
+      name: "bottom",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Pixels added below (≥ 0).",
+    },
+    {
+      name: "left",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Pixels added to the left (≥ 0).",
+    },
+    {
+      name: "right",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Pixels added to the right (≥ 0).",
+    },
+    {
+      name: "options.borderType",
+      type: '"constant" | "replicate" | "reflect" | "reflect101" | "wrap"',
+      req: false,
+      def: '"constant"',
+      desc: "Pixel extrapolation mode.",
+    },
+    {
+      name: "options.color",
+      type: "[r, g, b]",
+      req: false,
+      def: "[0, 0, 0]",
+      desc: 'Fill color for "constant" mode (0–255 each).',
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "copyMakeBorder",
   (

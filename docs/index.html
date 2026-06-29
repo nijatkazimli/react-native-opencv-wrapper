@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>react-native-opencv-wrapper &mdash; Documentation</title>
+    <meta
+      name="description"
+      content="Documentation for @nijatk/react-native-opencv-wrapper: a fluent, single-pass OpenCV image-processing pipeline for React Native."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <button
+        class="icon-btn nav-toggle"
+        id="navToggle"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+        </svg>
+      </button>
+
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true">CV</span>
+        <span class="brand-text">
+          <strong>opencv-wrapper</strong>
+          <em id="brandVersion"></em>
+        </span>
+      </a>
+
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"
+          />
+        </svg>
+        <input
+          type="search"
+          id="search"
+          class="search"
+          placeholder="Search operations&hellip;  ( / )"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Search operations"
+        />
+        <kbd class="search-kbd">/</kbd>
+      </div>
+
+      <div class="topbar-actions">
+        <a
+          class="icon-btn"
+          id="repoLink"
+          href="#"
+          target="_blank"
+          rel="noopener"
+          aria-label="GitHub repository"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 .5A12 12 0 0 0 0 12.6c0 5.34 3.44 9.87 8.21 11.47.6.11.82-.26.82-.58v-2.2c-3.34.74-4.04-1.45-4.04-1.45-.55-1.4-1.34-1.78-1.34-1.78-1.1-.76.08-.74.08-.74 1.2.09 1.84 1.26 1.84 1.26 1.07 1.86 2.81 1.32 3.5 1.01.11-.79.42-1.32.76-1.62-2.67-.31-5.47-1.36-5.47-6.04 0-1.33.46-2.42 1.24-3.27-.12-.31-.54-1.55.12-3.22 0 0 1.01-.33 3.3 1.25a11.3 11.3 0 0 1 6 0c2.29-1.58 3.3-1.25 3.3-1.25.66 1.67.24 2.91.12 3.22.78.85 1.24 1.94 1.24 3.27 0 4.69-2.81 5.72-5.49 6.03.43.38.81 1.12.81 2.26v3.35c0 .32.21.7.83.58A12 12 0 0 0 24 12.6 12 12 0 0 0 12 .5"
+            />
+          </svg>
+        </a>
+        <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">
+          <svg
+            class="icon-sun"
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10m0-5v2m0 16v2M4 12H2m20 0h-2M5.6 5.6 4.2 4.2m15.6 1.4 1.4-1.4M5.6 18.4l-1.4 1.4m15.6-1.4 1.4 1.4"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg
+            class="icon-moon"
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Documentation navigation">
+        <div class="sidebar-inner" id="sidebarInner"><!-- generated --></div>
+      </nav>
+      <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+      <main class="main" id="main">
+        <div id="top"></div>
+
+        <!-- Hero -->
+        <section class="hero" data-guide>
+          <h1>React Native OpenCV Wrapper</h1>
+          <p class="lead">
+            A fluent, type-safe image-processing pipeline backed by native
+            OpenCV on Android and iOS. Chain operations once, run them in a
+            single native pass, and get a file path, a base64 string, or
+            structured data back.
+          </p>
+          <div class="hero-stats" id="heroStats"><!-- generated --></div>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#getting-started">Get started</a>
+            <a class="btn" href="#operations">Browse operations</a>
+          </div>
+        </section>
+
+        <!-- Getting started -->
+        <section id="getting-started" class="guide-section" data-guide>
+          <h2>Getting started</h2>
+          <h3>Install</h3>
+          <pre
+            class="code"
+            data-lang="bash"
+          ><code>npm install @nijatk/react-native-opencv-wrapper
+# or
+yarn add @nijatk/react-native-opencv-wrapper</code></pre>
+          <p>
+            The library uses the React Native New Architecture (TurboModules).
+            Rebuild your app after installing so the native module is linked.
+            All paths are <strong>absolute filesystem paths</strong> &mdash; no
+            <code>file://</code> URIs.
+          </p>
+
+          <h3>A first pipeline</h3>
+          <pre
+            class="code"
+          ><code>import { pipeline } from "@nijatk/react-native-opencv-wrapper";
+
+const out = await pipeline()
+  .input("/abs/in.jpg")
+  .output("/abs/out.png")
+  .resize(640, 480)
+  .gray()
+  .gaussianBlur(5)
+  .canny(50, 150)
+  .run(); // resolves with the output path</code></pre>
+          <p>
+            A pipeline reads once, transforms in memory, and writes once. It is
+            optimized losslessly before running: adjacent point transforms
+            (<code>lut</code>, <code>bitwiseNot</code>) are fused into a single
+            <code>cv::LUT</code> pass, and redundant consecutive
+            <code>gray()</code> calls are collapsed.
+          </p>
+        </section>
+
+        <!-- Usage patterns -->
+        <section id="usage" class="guide-section" data-guide>
+          <h2>Usage patterns</h2>
+
+          <h3>1 &middot; Fluent pipeline &rarr; image</h3>
+          <p>
+            Chain transforms and finish with <code>.run()</code>. Resolves with
+            the output path, or a base64 string when you use
+            <code>outputBase64()</code>.
+          </p>
+
+          <h3>2 &middot; Base64, in-memory I/O</h3>
+          <pre class="code"><code>const base64Jpg = await pipeline()
+  .inputBase64(picker.base64)   // or "data:image/png;base64,&hellip;"
+  .outputBase64("jpg")          // format optional; defaults to "png"
+  .resize(256, 256)
+  .gray()
+  .run();</code></pre>
+          <p>
+            Combine <code>inputBase64()</code> with <code>outputBase64()</code>
+            to keep the image entirely in memory &mdash; no disk I/O.
+          </p>
+
+          <h3>3 &middot; Analysis terminals &rarr; structured data</h3>
+          <p>
+            Data ops are terminal: they run any queued transforms plus the
+            analysis step and resolve with a typed result. They need only an
+            input &mdash; no <code>output()</code> or <code>run()</code>.
+          </p>
+          <pre class="code"><code>const { found, codes } = await pipeline()
+  .input("/abs/photo.jpg")
+  .crop(0, 0, 512, 512)
+  .decodeQR();</code></pre>
+
+          <h3>4 &middot; Standalone one-shot functions</h3>
+          <pre
+            class="code"
+          ><code>import { gray, resize, canny } from "@nijatk/react-native-opencv-wrapper";
+
+await gray("/abs/in.jpg", "/abs/out.jpg");
+await resize("/abs/in.jpg", "/abs/out.jpg", 320, 240);
+await canny("/abs/in.jpg", "/abs/out.jpg", 50, 150);</code></pre>
+
+          <h3>5 &middot; Dynamic op selection</h3>
+          <pre
+            class="code"
+          ><code>import { standaloneOps, runStandaloneOp } from "@nijatk/react-native-opencv-wrapper";
+
+await runStandaloneOp("threshold", "/in.png", "/out.png", 127, 255, "binary");
+await standaloneOps.rotate("/in.png", "/out.png", 90);</code></pre>
+
+          <h3>6 &middot; Clone &amp; branch</h3>
+          <pre
+            class="code"
+          ><code>const base = pipeline().input("/in.jpg").gray();
+await base.clone().output("/edges.jpg").canny(50, 150).run();
+await base.clone().output("/blurred.jpg").gaussianBlur(7).run();</code></pre>
+        </section>
+
+        <!-- I/O model -->
+        <section id="io-model" class="guide-section" data-guide>
+          <h2>Input &amp; output model</h2>
+          <p>
+            Sources and sinks are absolute file paths or base64 strings; they
+            are interchangeable. The decoder/encoder is chosen from the file
+            extension, or from an explicit format for base64 output.
+          </p>
+          <div class="io-grid">
+            <div class="io-card">
+              <h4>Inputs</h4>
+              <ul>
+                <li><code>input(path)</code> &mdash; absolute file path</li>
+                <li>
+                  <code>inputBase64(data)</code> &mdash; raw base64 or a
+                  <code>data:</code> URI
+                </li>
+              </ul>
+            </div>
+            <div class="io-card">
+              <h4>Outputs</h4>
+              <ul>
+                <li>
+                  <code>output(path)</code> &mdash; encoder from extension
+                </li>
+                <li>
+                  <code>outputBase64(format?)</code> &mdash; resolves to a
+                  base64 string
+                </li>
+              </ul>
+            </div>
+          </div>
+          <p class="muted">
+            Supported output formats:
+            <span id="formatList"></span>.
+          </p>
+        </section>
+
+        <!-- Error codes -->
+        <section id="errors" class="guide-section" data-guide>
+          <h2>Error handling</h2>
+          <p>
+            Every async call rejects with a stable <code>code</code> you can
+            branch on, plus a human-readable <code>message</code>.
+          </p>
+          <div class="table-wrap">
+            <table class="errors-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody id="errorRows">
+                <!-- generated -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Operations -->
+        <section id="operations" class="guide-section ops-head" data-guide>
+          <h2>Operations</h2>
+          <p class="muted" id="opsCountLine"></p>
+        </section>
+
+        <div id="opsContainer"><!-- generated --></div>
+
+        <p class="no-results" id="noResults" hidden>
+          No operations match your search.
+        </p>
+
+        <footer class="footer">
+          <p>
+            Generated from the library source &middot;
+            <a id="footerRepo" href="#" target="_blank" rel="noopener"
+              >view on GitHub</a
+            >
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

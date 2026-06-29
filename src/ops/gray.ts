@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -18,4 +19,14 @@ declare module "../core/pipeline" {
   }
 }
 
+export const grayDoc: OpDoc = {
+  name: "Grayscale Conversion",
+  category: "color-channels",
+  kind: "image",
+  method: "gray(): Pipeline",
+  standalone: "gray(input, output) · alias toGray(input, output)",
+  desc: "Convert BGR to single-channel grayscale. No-op if the image is already single-channel.",
+  params: [],
+  notes: null,
+};
 registerOp("gray");

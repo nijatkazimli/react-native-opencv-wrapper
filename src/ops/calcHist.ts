@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.calcHist}. */
 export interface CalcHistOptions {
@@ -38,6 +39,39 @@ declare module "../core/pipeline" {
   }
 }
 
+export const calcHistDoc: OpDoc = {
+  name: "Calculate Histogram",
+  category: "histogram-tone",
+  kind: "data",
+  method:
+    "calcHist(options?: { bins?: number; channel?: number }): Promise<CalcHistResult>",
+  standalone: null,
+  desc: "Intensity histogram of one channel over [0, 256), quantized into bins buckets.",
+  params: [
+    {
+      name: "options.bins",
+      type: "number",
+      req: false,
+      def: "256",
+      desc: "Number of histogram bins (1–256).",
+    },
+    {
+      name: "options.channel",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Channel index (0 = grayscale intensity).",
+    },
+  ],
+  returns: `{
+  bins: number,
+  channel: number,
+  histogram: number[],
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("calcHist", (options: CalcHistOptions = {}) => {
   const { bins = 256, channel = 0 } = options;
   return { bins, channel };

@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.connectedComponents}. */
 export interface ConnectedComponentsOptions {
@@ -51,6 +52,44 @@ declare module "../core/pipeline" {
   }
 }
 
+export const connectedComponentsDoc: OpDoc = {
+  name: "Connected Components",
+  category: "segmentation",
+  kind: "data",
+  method:
+    "connectedComponents(options?: { connectivity?: 4 | 8; minArea?: number }): Promise<ConnectedComponentsResult>",
+  standalone: null,
+  desc: "Label connected foreground regions and return each one's area, bounding box, and centroid. Treats the image as a binary mask; chain gray() + threshold() first.",
+  params: [
+    {
+      name: "options.connectivity",
+      type: "4 | 8",
+      req: false,
+      def: "8",
+      desc: "Pixel connectivity (4- or 8-connected).",
+    },
+    {
+      name: "options.minArea",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Discard components with area below this (px²).",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  count: number,
+  components: Array<{
+    label: number,
+    area: number,
+    boundingBox: { x, y, width, height },
+    centroid: { x, y }
+  }>,
+  width: number,
+  height: number
+}`,
+  notes: "Components are ordered largest-area first.",
+};
 registerDataOp(
   "connectedComponents",
   (options: ConnectedComponentsOptions = {}) => {

@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /**
  * Compound morphological operations accepted by {@link Pipeline.morphologyEx}.
@@ -48,6 +49,39 @@ declare module "../core/pipeline" {
   }
 }
 
+export const morphologyExDoc: OpDoc = {
+  name: "Compound Morphology",
+  category: "morphology",
+  kind: "image",
+  method:
+    'morphologyEx(operation: "open" | "close" | "gradient" | "tophat" | "blackhat", kernelSize: number, iterations?: number): Pipeline',
+  standalone: "morphologyEx(input, output, operation, kernelSize, iterations?)",
+  desc: "Denoise masks, close gaps, or extract edges/details. open = erode+dilate; close = dilate+erode; gradient = dilation−erosion; tophat = src−open; blackhat = close−src.",
+  params: [
+    {
+      name: "operation",
+      type: '"open" | "close" | "gradient" | "tophat" | "blackhat"',
+      req: true,
+      def: null,
+      desc: "Compound morphology to apply.",
+    },
+    {
+      name: "kernelSize",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Positive odd structuring-element size.",
+    },
+    {
+      name: "iterations",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Times to apply.",
+    },
+  ],
+  notes: "kernelSize must be odd; square structuring element only.",
+};
 registerOp(
   "morphologyEx",
   (operation: MorphOperation, kernelSize: number, iterations: number = 1) => ({

@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -27,6 +28,39 @@ declare module "../core/pipeline" {
   }
 }
 
+export const kmeansDoc: OpDoc = {
+  name: "K-Means Color Quantization",
+  category: "segmentation",
+  kind: "image",
+  method:
+    "kmeans(k?: number, attempts?: number, iterations?: number): Pipeline",
+  standalone: "kmeans(input, output, k?, attempts?, iterations?)",
+  desc: "K-means color quantization; maps every pixel to the nearest of k dominant colors. Posterizes the image.",
+  params: [
+    {
+      name: "k",
+      type: "number",
+      req: false,
+      def: "8",
+      desc: "Number of color clusters (≥ 1).",
+    },
+    {
+      name: "attempts",
+      type: "number",
+      req: false,
+      def: "3",
+      desc: "Re-run count; the best result is kept.",
+    },
+    {
+      name: "iterations",
+      type: "number",
+      req: false,
+      def: "10",
+      desc: "Max iterations per attempt.",
+    },
+  ],
+  notes: null,
+};
 registerOp("kmeans", (k = 8, attempts = 3, iterations = 10) => ({
   k,
   attempts,

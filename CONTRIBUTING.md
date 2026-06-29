@@ -39,6 +39,7 @@ to `Pipeline` and an entry to `OpArgsMap`, then registers the runtime builder.
 ```ts
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -53,6 +54,20 @@ declare module "../core/pipeline" {
     invert(): Pipeline<Input, Output>;
   }
 }
+
+// Powers the generated docs site (see "Documentation" below). The export is
+// named `<id>Doc` so the `export *` barrel never collides, and it is stripped
+// from the published build.
+export const invertDoc: OpDoc = {
+  name: "Invert",
+  category: "masking-bitwise",
+  kind: "image",
+  method: "invert(): Pipeline",
+  standalone: "invert(input, output)",
+  desc: "Invert every pixel (`cv::bitwise_not`).",
+  params: [],
+  notes: null,
+};
 
 registerOp("invert");
 ```
@@ -167,6 +182,39 @@ release any temporary `Mat` you allocate (e.g. a structuring element). Return a
 the orchestrator will skip releasing it. iOS relies on `cv::Mat` RAII and needs
 no manual release.
 
+## Documentation
+
+The docs site at
+<https://nijatkazimli.github.io/react-native-opencv-wrapper/> is **generated
+from the op files** — there is no separate prose to keep in sync. Every op
+module exports a `<id>Doc` constant typed as [`OpDoc`](src/ops/docTypes.ts):
+
+| Field        | Notes                                                                |
+| ------------ | -------------------------------------------------------------------- |
+| `name`       | Display name shown on the card.                                      |
+| `category`   | Must match a category `id` in `scripts/docs-meta.mjs`.               |
+| `kind`       | `"image"` for transform ops, `"data"` for analysis ops.              |
+| `method`     | The method signature, e.g. `invert(): Pipeline`.                     |
+| `standalone` | The standalone signature string, or `null` (analysis ops have none). |
+| `desc`       | One- or two-sentence description.                                    |
+| `params`     | One entry per parameter: `{ name, type, req, def, desc }`.           |
+| `returns`    | Data ops only — a string describing the resolved result shape.       |
+| `notes`      | Optional caveat string, or `null`.                                   |
+
+Regenerate `docs/data.js` after editing:
+
+```bash
+npm run docs:gen
+```
+
+Notes:
+
+- If your op needs a **new category**, add it to the `categories` array in
+  `scripts/docs-meta.mjs` (its order there sets the render order).
+- These `doc` constants are **stripped from the published npm build** by the
+  post-build step, so they never reach consumers.
+- The site deploys automatically on a release tag — no manual deploy needed.
+
 ## Testing your op
 
 After adding the three files (+ registry lines):
@@ -186,13 +234,14 @@ and confirm the output image renders.
 
 ## Checklist
 
-- [ ] `src/ops/<name>.ts` created (declaration merge + `registerOp`)
+- [ ] `src/ops/<name>.ts` created (declaration merge + `registerOp` + `<name>Doc`)
 - [ ] `src/ops/index.ts` exports the new module
 - [ ] (optional) standalone wrapper added to `src/standalone.ts`
 - [ ] `ios/pipeline/ops/<Name>.mm` created with `OPENCV_REGISTER_OP`
 - [ ] `android/.../ops/<Name>Op.kt` created and added to `OpRegistry.ops`
 - [ ] Native op name matches the TS `type`
 - [ ] Params validated identically on both platforms
-- [ ] README operations table updated (if user-facing)
+- [ ] `<name>Doc` exported and any new category added to `scripts/docs-meta.mjs`
+- [ ] `npm run docs:gen` run to regenerate `docs/data.js`
 
 [declaration merging]: https://www.typescriptlang.org/docs/handbook/declaration-merging.html

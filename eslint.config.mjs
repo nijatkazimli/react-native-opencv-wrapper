@@ -12,6 +12,8 @@ export default [
       "lib/**",
       "build/**",
       "coverage/**",
+      "docs/**",
+      "scripts/**",
       "android/**",
       "ios/**",
       "example/android/**",

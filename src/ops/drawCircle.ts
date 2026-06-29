@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 import type { DrawRectOptions } from "./drawRect";
 
 /** Styling options for {@link Pipeline.drawCircle}. */
@@ -38,6 +39,67 @@ declare module "../core/pipeline" {
   }
 }
 
+export const drawCircleDoc: OpDoc = {
+  name: "Draw Circle",
+  category: "drawing",
+  kind: "image",
+  method:
+    "drawCircle(centerX: number, centerY: number, radius: number, options?: { color?: [r, g, b]; thickness?: number; fillColor?: [r, g, b]; antialias?: boolean }): Pipeline",
+  standalone: "drawCircle(input, output, centerX, centerY, radius, options?)",
+  desc: "Draw a circle (optionally filled) on the current image. Mark keypoints or detection centers.",
+  params: [
+    {
+      name: "centerX",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Center X (px).",
+    },
+    {
+      name: "centerY",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Center Y (px).",
+    },
+    {
+      name: "radius",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Radius (px, > 0).",
+    },
+    {
+      name: "options.color",
+      type: "[r, g, b]",
+      req: false,
+      def: "[255, 0, 0]",
+      desc: "Stroke color (0–255 each).",
+    },
+    {
+      name: "options.thickness",
+      type: "number",
+      req: false,
+      def: "2",
+      desc: "Stroke width (px, ≥ 1).",
+    },
+    {
+      name: "options.fillColor",
+      type: "[r, g, b]",
+      req: false,
+      def: "undefined",
+      desc: "Optional solid fill, drawn under the stroke.",
+    },
+    {
+      name: "options.antialias",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Smooth edges.",
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "drawCircle",
   (

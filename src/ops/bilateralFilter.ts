@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -33,6 +34,40 @@ declare module "../core/pipeline" {
   }
 }
 
+export const bilateralFilterDoc: OpDoc = {
+  name: "Bilateral Filter",
+  category: "blur-smoothing",
+  kind: "image",
+  method:
+    "bilateralFilter(diameter?: number, sigmaColor?: number, sigmaSpace?: number): Pipeline",
+  standalone:
+    "bilateralFilter(input, output, diameter?, sigmaColor?, sigmaSpace?)",
+  desc: "Edge-preserving filter that smooths flat regions while keeping edges sharp. Great for denoising before thresholding.",
+  params: [
+    {
+      name: "diameter",
+      type: "number",
+      req: false,
+      def: "9",
+      desc: "Pixel neighborhood diameter (≥ 1).",
+    },
+    {
+      name: "sigmaColor",
+      type: "number",
+      req: false,
+      def: "75",
+      desc: "Color sigma; larger mixes more distant colors.",
+    },
+    {
+      name: "sigmaSpace",
+      type: "number",
+      req: false,
+      def: "75",
+      desc: "Coordinate sigma; larger mixes more distant pixels.",
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "bilateralFilter",
   (diameter = 9, sigmaColor = 75, sigmaSpace = 75) => ({

@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Neighborhood weighting used by {@link Pipeline.adaptiveThreshold}. */
 export type AdaptiveMethod = "mean" | "gaussian";
@@ -44,6 +45,54 @@ declare module "../core/pipeline" {
   }
 }
 
+export const adaptiveThresholdDoc: OpDoc = {
+  name: "Adaptive Threshold",
+  category: "thresholding",
+  kind: "image",
+  method:
+    'adaptiveThreshold(maxValue: number, blockSize: number, c: number, method?: "mean" | "gaussian", thresholdType?: "binary" | "binaryInv"): Pipeline',
+  standalone:
+    "adaptiveThreshold(input, output, maxValue, blockSize, c, method?, thresholdType?)",
+  desc: "Per-region threshold that tracks uneven lighting; ideal for binarizing documents and text.",
+  params: [
+    {
+      name: "maxValue",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Value assigned to passing pixels (typically 255).",
+    },
+    {
+      name: "blockSize",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Odd neighborhood size, greater than 1.",
+    },
+    {
+      name: "c",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Constant subtracted from the local mean / weighted sum.",
+    },
+    {
+      name: "method",
+      type: '"mean" | "gaussian"',
+      req: false,
+      def: '"gaussian"',
+      desc: "Neighborhood weighting.",
+    },
+    {
+      name: "thresholdType",
+      type: '"binary" | "binaryInv"',
+      req: false,
+      def: '"binary"',
+      desc: "Output mode (binary only).",
+    },
+  ],
+  notes: "Grayscales internally; blockSize must be odd and > 1.",
+};
 registerOp(
   "adaptiveThreshold",
   (
