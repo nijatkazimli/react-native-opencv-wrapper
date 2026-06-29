@@ -39,6 +39,38 @@ function composePointOp(table: number[], op: SerializedOp): number[] {
 }
 
 /**
+ * Greedily consume the run of adjacent point ops starting at `start`, folding
+ * them into a single table, and append the result of that run to `result`:
+ *
+ * - a lone point op is kept verbatim;
+ * - a run of two or more becomes one `lut`, unless it composes to the identity
+ *   (in which case nothing is emitted).
+ *
+ * @returns The index just past the consumed run.
+ */
+function fusePointRun(
+  ops: readonly SerializedOp[],
+  start: number,
+  result: SerializedOp[],
+): number {
+  let table = identityTable();
+  let j = start;
+  while (j < ops.length && POINT_OPS.has(ops[j]!.type)) {
+    table = composePointOp(table, ops[j]!);
+    j++;
+  }
+
+  if (j - start === 1) {
+    result.push(ops[start]!); // a single point op: keep it verbatim
+  } else if (!isIdentity(table)) {
+    result.push({ type: "lut", table });
+  }
+  // A multi-op run that composes to the identity is a no-op: emit nothing.
+
+  return j;
+}
+
+/**
  * Rewrite a pipeline's op list into an equivalent but cheaper one before it is
  * serialized to native. Every rule preserves the exact output image:
  *
@@ -62,22 +94,7 @@ export function optimizePipeline(ops: readonly SerializedOp[]): SerializedOp[] {
     const op = ops[i]!;
 
     if (POINT_OPS.has(op.type)) {
-      // Greedily consume the whole run of adjacent point ops and fold them
-      // into one table.
-      let table = identityTable();
-      let j = i;
-      while (j < ops.length && POINT_OPS.has(ops[j]!.type)) {
-        table = composePointOp(table, ops[j]!);
-        j++;
-      }
-
-      if (j - i === 1) {
-        result.push(op); // a single point op: keep it verbatim
-      } else if (!isIdentity(table)) {
-        result.push({ type: "lut", table });
-      }
-      // A multi-op run that composes to the identity is a no-op: emit nothing.
-      i = j;
+      i = fusePointRun(ops, i, result);
       continue;
     }
 
