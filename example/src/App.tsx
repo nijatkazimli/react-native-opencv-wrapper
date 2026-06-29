@@ -16,6 +16,7 @@ import {
 } from "@nijatk/react-native-opencv-wrapper";
 import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
 import { SAMPLE_DOCUMENT_PHOTO_BASE64 } from "./documentSample";
+import { SAMPLE_LENNA_PHOTO_BASE64 } from "./lennaSample";
 
 // A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
 // the example needs no extra assets / camera permissions.
@@ -36,7 +37,16 @@ async function ensureSampleImage() {
 }
 
 /** A named demo: a function that adds ops to a ready pipeline. */
-type Demo = { label: string; configure: (p: ReadyPipeline) => ReadyPipeline };
+type Demo = {
+  label: string;
+  configure: (p: ReadyPipeline) => ReadyPipeline;
+  /**
+   * When set, the demo runs base64-in/base64-out against this image (decoded as
+   * a real photo) and shows it side-by-side with the result. When omitted, the
+   * demo runs file-to-file against the synthetic checkerboard sample.
+   */
+  inputBase64?: string;
+};
 
 const DEMOS: readonly Demo[] = [
   { label: "Gray", configure: (p) => p.gray() },
@@ -260,6 +270,37 @@ const DEMOS: readonly Demo[] = [
   },
 ];
 
+// Build a demo that runs against the real "Lenna" photo (base64 in / out), so
+// the color & photometric ops have a natural image to work on.
+const lenna = (label: string, configure: Demo["configure"]): Demo => ({
+  label,
+  configure,
+  inputBase64: SAMPLE_LENNA_PHOTO_BASE64,
+});
+
+// Operations that are most meaningful on a genuine photograph rather than the
+// synthetic checkerboard (tonal, color, texture and segmentation ops).
+const LENNA_DEMOS: readonly Demo[] = [
+  lenna("Lenna Gray", (p) => p.gray()),
+  lenna("Lenna Blur", (p) => p.gaussianBlur(9)),
+  lenna("Lenna Bilateral", (p) => p.bilateralFilter(9, 100, 100)),
+  lenna("Lenna CLAHE", (p) => p.clahe(3, 8)),
+  lenna("Lenna Equalize", (p) => p.equalizeHist()),
+  lenna("Lenna Canny", (p) => p.gray().canny(80, 160)),
+  lenna("Lenna Sharpen", (p) =>
+    p.filter2D([
+      [0, -1, 0],
+      [-1, 5, -1],
+      [0, -1, 0],
+    ]),
+  ),
+  lenna("Lenna K-Means", (p) => p.kmeans(8)),
+  lenna("Lenna Watershed", (p) => p.watershed([255, 0, 0])),
+  lenna("Lenna Gamma", (p) => p.lut((x) => 255 * (x / 255) ** 0.5)),
+  lenna("Lenna Sobel", (p) => p.gray().sobel(1, 0, 3)),
+  lenna("Lenna HSV", (p) => p.cvtColor("BGR2HSV")),
+];
+
 type Result = {
   id: string;
   label: string;
@@ -285,20 +326,42 @@ export default function App() {
     );
   }, []);
 
-  const runDemo = useCallback(async ({ label, configure }: Demo) => {
-    try {
-      const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
-      const outputPath = `${DIR}/out-${safeLabel}-${Date.now()}.png`;
-      const base = pipeline().input(INPUT_PATH).output(outputPath);
-      const path = await configure(base).run();
-      setResults((r) => [
-        { id: path, label, uri: `file://${path}`, note: path },
-        ...r,
-      ]);
-    } catch (e) {
-      setError(`${label}: ${(e as Error).message}`);
-    }
-  }, []);
+  const runDemo = useCallback(
+    async ({ label, configure, inputBase64 }: Demo) => {
+      try {
+        // Photo demos: decode the base64 image, run in-memory, and show the
+        // original alongside the result.
+        if (inputBase64) {
+          const outBase64 = await configure(
+            pipeline().inputBase64(inputBase64).outputBase64("png"),
+          ).run();
+          setResults((r) => [
+            {
+              id: `${label}-${Date.now()}`,
+              label,
+              uri: `data:image/png;base64,${outBase64}`,
+              compareUri: `data:image/jpeg;base64,${inputBase64}`,
+              captions: { left: "original", right: "result" },
+              note: `Lenna photo \u00b7 ${outBase64.length} chars`,
+            },
+            ...r,
+          ]);
+          return;
+        }
+        const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
+        const outputPath = `${DIR}/out-${safeLabel}-${Date.now()}.png`;
+        const base = pipeline().input(INPUT_PATH).output(outputPath);
+        const path = await configure(base).run();
+        setResults((r) => [
+          { id: path, label, uri: `file://${path}`, note: path },
+          ...r,
+        ]);
+      } catch (e) {
+        setError(`${label}: ${(e as Error).message}`);
+      }
+    },
+    [],
+  );
 
   const runBase64Demo = useCallback(async () => {
     try {
@@ -584,6 +647,17 @@ export default function App() {
         <Button label="Measure" onPress={runMeasureDemo} />
       </View>
 
+      <Text style={styles.sectionTitle}>Lenna (photo) demos</Text>
+      <View style={styles.row}>
+        {LENNA_DEMOS.map((demo) => (
+          <Button
+            key={demo.label}
+            label={demo.label}
+            onPress={() => runDemo(demo)}
+          />
+        ))}
+      </View>
+
       {results.map((r) => (
         <View key={r.id} style={styles.resultBlock}>
           <Text style={styles.mono}>{r.label}</Text>
@@ -626,6 +700,7 @@ function Button({
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 12 },
   title: { fontSize: 20, fontWeight: "600" },
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginTop: 8 },
   mono: { fontFamily: Platform.select({ ios: "Menlo", android: "monospace" }) },
   error: { color: "red" },
   row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
