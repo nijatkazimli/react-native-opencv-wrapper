@@ -13,6 +13,18 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
     reject(code.length ? code : @"opencv_error", error.localizedDescription, error);
 }
 
+/// Shared concurrent queue so heavy OpenCV work runs off the JS thread and
+/// never blocks UI. Independent pipeline calls can also overlap here.
+static dispatch_queue_t OpenCVWorkQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.nijatk.reactnativeopencvwrapper.work",
+                                      DISPATCH_QUEUE_CONCURRENT);
+    });
+    return queue;
+}
+
 @implementation ReactNativeOpencvWrapper
 
 - (NSString *)getOpenCVVersion {
@@ -23,17 +35,19 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
     outputPath:(NSString *)outputPath
        resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject {
-    NSError *error = nil;
-    BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
-                                               output:outputPath
-                                               opName:@"gray"
-                                               params:@{}
-                                                error:&error];
-    if (!ok) {
-        OpenCVReject(reject, error);
-        return;
-    }
-    resolve(outputPath);
+    dispatch_async(OpenCVWorkQueue(), ^{
+        NSError *error = nil;
+        BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
+                                                   output:outputPath
+                                                   opName:@"gray"
+                                                   params:@{}
+                                                    error:&error];
+        if (!ok) {
+            OpenCVReject(reject, error);
+            return;
+        }
+        resolve(outputPath);
+    });
 }
 
 - (void)gaussianBlur:(NSString *)inputPath
@@ -47,17 +61,19 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
         reject(OpenCVErrorInvalidArgument, @"kernelSize must be a positive odd integer", nil);
         return;
     }
-    NSError *error = nil;
-    BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
-                                               output:outputPath
-                                               opName:@"gaussianBlur"
-                                               params:@{ @"kernelSize": @(k), @"sigmaX": @(sigmaX) }
-                                                error:&error];
-    if (!ok) {
-        OpenCVReject(reject, error);
-        return;
-    }
-    resolve(outputPath);
+    dispatch_async(OpenCVWorkQueue(), ^{
+        NSError *error = nil;
+        BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
+                                                   output:outputPath
+                                                   opName:@"gaussianBlur"
+                                                   params:@{ @"kernelSize": @(k), @"sigmaX": @(sigmaX) }
+                                                    error:&error];
+        if (!ok) {
+            OpenCVReject(reject, error);
+            return;
+        }
+        resolve(outputPath);
+    });
 }
 
 - (void)canny:(NSString *)inputPath
@@ -66,17 +82,19 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
    threshold2:(double)threshold2
       resolve:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject {
-    NSError *error = nil;
-    BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
-                                               output:outputPath
-                                               opName:@"canny"
-                                               params:@{ @"threshold1": @(threshold1), @"threshold2": @(threshold2) }
-                                                error:&error];
-    if (!ok) {
-        OpenCVReject(reject, error);
-        return;
-    }
-    resolve(outputPath);
+    dispatch_async(OpenCVWorkQueue(), ^{
+        NSError *error = nil;
+        BOOL ok = [OpenCVOpRegistry runSingleOpWithInput:inputPath
+                                                   output:outputPath
+                                                   opName:@"canny"
+                                                   params:@{ @"threshold1": @(threshold1), @"threshold2": @(threshold2) }
+                                                    error:&error];
+        if (!ok) {
+            OpenCVReject(reject, error);
+            return;
+        }
+        resolve(outputPath);
+    });
 }
 
 - (void)runPipeline:(NSString *)inputPath
@@ -84,16 +102,18 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
             opsJson:(NSString *)opsJson
             resolve:(RCTPromiseResolveBlock)resolve
              reject:(RCTPromiseRejectBlock)reject {
-    NSError *error = nil;
-    BOOL ok = [OpenCVOpRegistry runPipelineWithInput:inputPath
-                                              output:outputPath
-                                             opsJson:opsJson
-                                               error:&error];
-    if (!ok) {
-        OpenCVReject(reject, error);
-        return;
-    }
-    resolve(outputPath);
+    dispatch_async(OpenCVWorkQueue(), ^{
+        NSError *error = nil;
+        BOOL ok = [OpenCVOpRegistry runPipelineWithInput:inputPath
+                                                  output:outputPath
+                                                 opsJson:opsJson
+                                                   error:&error];
+        if (!ok) {
+            OpenCVReject(reject, error);
+            return;
+        }
+        resolve(outputPath);
+    });
 }
 
 - (void)runPipelineIO:(NSString *)inputJson
@@ -101,31 +121,35 @@ static void OpenCVReject(RCTPromiseRejectBlock reject, NSError *error) {
               opsJson:(NSString *)opsJson
               resolve:(RCTPromiseResolveBlock)resolve
                reject:(RCTPromiseRejectBlock)reject {
-    NSError *error = nil;
-    NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
-                                                       outputJson:outputJson
-                                                          opsJson:opsJson
-                                                            error:&error];
-    if (result == nil) {
-        OpenCVReject(reject, error);
-        return;
-    }
-    resolve(result);
+    dispatch_async(OpenCVWorkQueue(), ^{
+        NSError *error = nil;
+        NSString *result = [OpenCVOpRegistry runPipelineWithInputJson:inputJson
+                                                           outputJson:outputJson
+                                                              opsJson:opsJson
+                                                                error:&error];
+        if (result == nil) {
+            OpenCVReject(reject, error);
+            return;
+        }
+        resolve(result);
+    });
 }
 
 - (void)runPipelineData:(NSString *)inputJson
                 opsJson:(NSString *)opsJson
                 resolve:(RCTPromiseResolveBlock)resolve
                  reject:(RCTPromiseRejectBlock)reject {
-    NSError *error = nil;
-    NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
-                                                             opsJson:opsJson
-                                                               error:&error];
-    if (result == nil) {
-        OpenCVReject(reject, error);
-        return;
-    }
-    resolve(result);
+    dispatch_async(OpenCVWorkQueue(), ^{
+        NSError *error = nil;
+        NSString *result = [OpenCVOpRegistry runPipelineDataWithInputJson:inputJson
+                                                                 opsJson:opsJson
+                                                                   error:&error];
+        if (result == nil) {
+            OpenCVReject(reject, error);
+            return;
+        }
+        resolve(result);
+    });
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
