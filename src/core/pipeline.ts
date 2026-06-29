@@ -1,4 +1,5 @@
 import NativeOpenCV from "../NativeReactNativeOpencvWrapper";
+import { optimizePipeline } from "./optimize";
 import type { InputState, OutputState } from "./state";
 
 /**
@@ -163,7 +164,7 @@ export class Pipeline<
     return NativeOpenCV.runPipelineIO(
       JSON.stringify(this._input),
       JSON.stringify(this._output),
-      JSON.stringify(this.ops),
+      JSON.stringify(optimizePipeline(this.ops)),
     );
   }
 
@@ -178,7 +179,7 @@ export class Pipeline<
   runData<Result>(op: SerializedOp): Promise<Result> {
     return NativeOpenCV.runPipelineData(
       JSON.stringify(this._input),
-      JSON.stringify([...this.ops, op]),
+      JSON.stringify(optimizePipeline([...this.ops, op])),
     ).then((json) => JSON.parse(json) as Result);
   }
 }
