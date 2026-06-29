@@ -1672,4 +1672,306 @@ class OpRegistryInstrumentedTest {
     assertEquals(0.0, pixel[2], 0.0)
     result.release()
   }
+
+  // --- Contour-metric data ops ------------------------------------------
+
+  @Test
+  fun contourAreaMeasuresLargestContour() {
+    val input = writeShapesImage("area-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"contourArea"}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    // The 100x100 filled rectangle dominates the smaller one.
+    assertTrue(parsed.getDouble("area") > 5000.0)
+    assertTrue(parsed.getInt("width") > 50)
+  }
+
+  @Test
+  fun arcLengthMeasuresPerimeter() {
+    val input = writeShapesImage("arc-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"arcLength","closed":true}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    assertTrue(parsed.getDouble("length") > 100.0)
+  }
+
+  @Test
+  fun arcLengthAcceptsExplicitOpenPolyline() {
+    val input = writeShapesImage("arc-pts-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"arcLength","closed":false,"points":[[0,0],[30,0],[30,40]]}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    // 30 + 40 == 70 for an open polyline.
+    assertEquals(70.0, parsed.getDouble("length"), 0.001)
+  }
+
+  @Test
+  fun convexHullReturnsHullPoints() {
+    val input = writeShapesImage("hull-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"convexHull"}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    val hull = parsed.getJSONArray("hull")
+    assertTrue(hull.length() >= 4)
+    assertTrue(hull.getJSONObject(0).has("x"))
+  }
+
+  @Test
+  fun fitEllipseReturnsEllipseForContour() {
+    val input = writeShapesImage("ellipse-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        // fitEllipse needs >= 5 points; a CHAIN_APPROX rectangle only has 4,
+        // so supply explicit points.
+        """[{"type":"fitEllipse","points":[[10,10],[60,12],[64,40],[40,64],[8,40]]}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    val ellipse = parsed.getJSONObject("ellipse")
+    assertTrue(ellipse.has("centerX"))
+    assertTrue(ellipse.getDouble("width") > 0.0)
+  }
+
+  @Test
+  fun fitLineReturnsDirectionAndPoint() {
+    val input = writeShapesImage("line-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"fitLine"}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    assertTrue(parsed.getJSONObject("line").has("vx"))
+  }
+
+  // --- Image-statistics data ops ----------------------------------------
+
+  @Test
+  fun meanStdDevOnUniformImageHasZeroSpread() {
+    val input = writeSourceImage("mean-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"meanStdDev"}]""",
+      ),
+    )
+    assertEquals(3, parsed.getInt("channels"))
+    val stddev = parsed.getJSONArray("stddev")
+    assertEquals(0.0, stddev.getDouble(0), 0.001)
+  }
+
+  @Test
+  fun minMaxLocOnUniformImageHasEqualExtremes() {
+    val input = writeSourceImage("minmax-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"minMaxLoc"}]""",
+      ),
+    )
+    assertEquals(parsed.getDouble("min"), parsed.getDouble("max"), 0.001)
+    assertTrue(parsed.getJSONObject("maxLoc").has("x"))
+  }
+
+  @Test
+  fun countNonZeroReportsRatio() {
+    val input = writeShapesImage("nonzero-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"countNonZero"}]""",
+      ),
+    )
+    assertTrue(parsed.getInt("count") > 0)
+    val ratio = parsed.getDouble("ratio")
+    assertTrue(ratio > 0.0 && ratio < 1.0)
+  }
+
+  @Test
+  fun calcHistDefaultsToFullRange() {
+    val input = writeSourceImage("hist-in.png")
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$input"}""",
+        """[{"type":"calcHist","bins":256,"channel":0}]""",
+      ),
+    )
+    assertEquals(256, parsed.getInt("bins"))
+    assertEquals(256, parsed.getJSONArray("histogram").length())
+  }
+
+  // --- Template matching -------------------------------------------------
+
+  @Test
+  fun matchTemplateLocatesPattern() {
+    val scene = writeShapesImage("tmpl-scene.png")
+    val template = Mat(60, 60, CvType.CV_8UC3, Scalar(0.0, 0.0, 0.0))
+    Imgproc.rectangle(template, Point(0.0, 0.0), Point(40.0, 40.0), Scalar(255.0, 255.0, 255.0), -1)
+    val templateFile = File(cacheDir, "tmpl-patch.png")
+    assertTrue(Imgcodecs.imwrite(templateFile.absolutePath, template))
+    template.release()
+
+    val parsed = JSONObject(
+      OpRegistry.executeData(
+        """{"kind":"path","value":"$scene"}""",
+        """[{"type":"matchTemplate","template":"${templateFile.absolutePath}","method":"ccoeffNormed"}]""",
+      ),
+    )
+    assertTrue(parsed.getBoolean("found"))
+    assertEquals(60, parsed.getInt("templateWidth"))
+    assertTrue(parsed.getJSONObject("location").has("x"))
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun matchTemplateRejectsMissingTemplate() {
+    val scene = writeShapesImage("tmpl-bad-scene.png")
+    OpRegistry.executeData(
+      """{"kind":"path","value":"$scene"}""",
+      """[{"type":"matchTemplate","template":""}]""",
+    )
+  }
+
+  // --- Segmentation transform ops ---------------------------------------
+
+  @Test
+  fun distanceTransformProducesSingleChannel() {
+    val input = writeShapesImage("dist-in.png")
+    val output = outputPath("dist-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"distanceTransform","distanceType":"L2","maskSize":3,"normalize":true}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(1, result.channels())
+    assertEquals(320, result.cols())
+    assertEquals(240, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun kmeansQuantizesColors() {
+    val input = writeSourceImage("kmeans-in.png")
+    val output = outputPath("kmeans-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"kmeans","k":2,"attempts":1,"iterations":5}]""")
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun grabCutPreservesDimensions() {
+    val input = writeShapesImage("grabcut-in.png")
+    val output = outputPath("grabcut-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"grabCut","rect":{"x":20,"y":20,"width":100,"height":100},"iterations":2}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(320, result.cols())
+    assertEquals(240, result.rows())
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun grabCutRejectsMissingRect() {
+    val input = writeShapesImage("grabcut-bad-in.png")
+    val output = outputPath("grabcut-bad-out.png")
+    OpRegistry.execute(input, output, """[{"type":"grabCut"}]""")
+  }
+
+  @Test
+  fun watershedPreservesDimensions() {
+    val input = writeShapesImage("watershed-in.png")
+    val output = outputPath("watershed-out.png")
+
+    OpRegistry.execute(input, output, """[{"type":"watershed","lineColor":[255,0,0]}]""")
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(320, result.cols())
+    assertEquals(240, result.rows())
+    result.release()
+  }
+
+  // --- Ergonomic transform ops ------------------------------------------
+
+  @Test
+  fun drawContoursOutlinesShapes() {
+    val input = writeShapesImage("draw-in.png")
+    val output = outputPath("draw-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"drawContours","color":[0,255,0],"thickness":2,"minArea":0,"antialias":true}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(320, result.cols())
+    assertEquals(240, result.rows())
+    result.release()
+  }
+
+  @Test
+  fun fourPointTransformIdentityPreservesImage() {
+    val input = writeSourceImage("fpt-in.png")
+    val output = outputPath("fpt-out.png")
+
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"fourPointTransform","points":[[0,0],[39,0],[39,59],[0,59]],"width":40,"height":60}]""",
+    )
+
+    val result = readResult(output)
+    assertEquals(3, result.channels())
+    assertEquals(WIDTH, result.cols())
+    assertEquals(HEIGHT, result.rows())
+    val pixel = result.get(0, 0)
+    assertEquals(10.0, pixel[0], 0.0)
+    assertEquals(20.0, pixel[1], 0.0)
+    assertEquals(30.0, pixel[2], 0.0)
+    result.release()
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun fourPointTransformRejectsTooFewPoints() {
+    val input = writeSourceImage("fpt-bad-in.png")
+    val output = outputPath("fpt-bad-out.png")
+    OpRegistry.execute(
+      input,
+      output,
+      """[{"type":"fourPointTransform","points":[[0,0],[39,0],[39,59]]}]""",
+    )
+  }
 }

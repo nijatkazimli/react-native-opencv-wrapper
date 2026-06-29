@@ -339,4 +339,107 @@ describe("Data-returning analysis ops", () => {
       },
     ]);
   });
+
+  it("contour-metric ops default to the largest contour", async () => {
+    await pipeline().input("/abs/shape.png").contourArea();
+    await pipeline().input("/abs/shape.png").arcLength();
+    await pipeline().input("/abs/shape.png").convexHull();
+    await pipeline().input("/abs/shape.png").fitEllipse();
+    await pipeline().input("/abs/shape.png").fitLine();
+
+    expect(dataCall(0).ops).toEqual([{ type: "contourArea" }]);
+    expect(dataCall(1).ops).toEqual([{ type: "arcLength", closed: true }]);
+    expect(dataCall(2).ops).toEqual([{ type: "convexHull" }]);
+    expect(dataCall(3).ops).toEqual([{ type: "fitEllipse" }]);
+    expect(dataCall(4).ops).toEqual([{ type: "fitLine" }]);
+  });
+
+  it("contour-metric ops forward explicit points and arcLength.closed", async () => {
+    const points = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+      [5, 5],
+    ] as const;
+
+    await pipeline().input("/abs/shape.png").contourArea({ points });
+    await pipeline()
+      .input("/abs/shape.png")
+      .arcLength({ closed: false, points });
+    await pipeline().input("/abs/shape.png").convexHull({ points });
+    await pipeline().input("/abs/shape.png").fitEllipse({ points });
+    await pipeline().input("/abs/shape.png").fitLine({ points });
+
+    const expanded = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+      [5, 5],
+    ];
+    expect(dataCall(0).ops).toEqual([
+      { type: "contourArea", points: expanded },
+    ]);
+    expect(dataCall(1).ops).toEqual([
+      { type: "arcLength", closed: false, points: expanded },
+    ]);
+    expect(dataCall(2).ops).toEqual([{ type: "convexHull", points: expanded }]);
+    expect(dataCall(3).ops).toEqual([{ type: "fitEllipse", points: expanded }]);
+    expect(dataCall(4).ops).toEqual([{ type: "fitLine", points: expanded }]);
+  });
+
+  it("image-statistics ops serialize with no params", async () => {
+    await pipeline().input("/abs/img.png").meanStdDev();
+    await pipeline().input("/abs/img.png").minMaxLoc();
+    await pipeline().input("/abs/img.png").countNonZero();
+
+    expect(dataCall(0).ops).toEqual([{ type: "meanStdDev" }]);
+    expect(dataCall(1).ops).toEqual([{ type: "minMaxLoc" }]);
+    expect(dataCall(2).ops).toEqual([{ type: "countNonZero" }]);
+  });
+
+  it("calcHist applies defaults and forwards options", async () => {
+    await pipeline().input("/abs/img.png").calcHist();
+    await pipeline().input("/abs/img.png").calcHist({ bins: 64, channel: 1 });
+
+    expect(dataCall(0).ops).toEqual([
+      { type: "calcHist", bins: 256, channel: 0 },
+    ]);
+    expect(dataCall(1).ops).toEqual([
+      { type: "calcHist", bins: 64, channel: 1 },
+    ]);
+  });
+
+  it("matchTemplate forwards the template source and defaulted method", async () => {
+    await pipeline()
+      .input("/abs/scene.png")
+      .matchTemplate({ template: "/abs/logo.png" });
+    await pipeline()
+      .input("/abs/scene.png")
+      .matchTemplate({ template: "/abs/logo.png", method: "sqdiff" });
+
+    expect(dataCall(0).ops).toEqual([
+      {
+        type: "matchTemplate",
+        template: "/abs/logo.png",
+        method: "ccoeffNormed",
+      },
+    ]);
+    expect(dataCall(1).ops).toEqual([
+      { type: "matchTemplate", template: "/abs/logo.png", method: "sqdiff" },
+    ]);
+  });
+
+  it("resolves the parsed structured result of a metric op", async () => {
+    native.runPipelineData.mockResolvedValueOnce(
+      JSON.stringify({ found: true, area: 1234, width: 100, height: 80 }),
+    );
+
+    const result = await pipeline().input("/abs/shape.png").contourArea();
+
+    expect(result).toEqual({ found: true, area: 1234, width: 100, height: 80 });
+    expect(native.runPipelineData).toHaveBeenCalledTimes(1);
+    expect(native.runPipelineIO).not.toHaveBeenCalled();
+  });
 });

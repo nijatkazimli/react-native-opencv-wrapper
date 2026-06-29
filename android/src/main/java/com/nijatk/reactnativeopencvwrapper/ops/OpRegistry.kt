@@ -55,6 +55,12 @@ object OpRegistry {
     SepFilter2DOp,
     DebugOp,
     ScanDocumentOp,
+    DistanceTransformOp,
+    KmeansOp,
+    GrabCutOp,
+    WatershedOp,
+    DrawContoursOp,
+    FourPointTransformOp,
   ).associateBy { it.name }
 
   private val dataOps: Map<String, DataOp> = listOf(
@@ -67,6 +73,16 @@ object OpRegistry {
     BoundingRectOp,
     MinAreaRectOp,
     ApproxPolyDPOp,
+    ContourAreaOp,
+    ArcLengthOp,
+    ConvexHullOp,
+    FitEllipseOp,
+    FitLineOp,
+    MeanStdDevOp,
+    MinMaxLocOp,
+    CountNonZeroOp,
+    CalcHistOp,
+    MatchTemplateOp,
   ).associateBy { it.name }
 
   /** Run all serialized ops in `opsJson`, reading once and writing once. */

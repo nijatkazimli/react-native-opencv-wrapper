@@ -1,32 +1,8 @@
 #import "../OpenCVOpRegistry.h"
 
-#import <algorithm>
 #import <vector>
 
 using cv::Mat;
-
-static bool OpenCVResolvePoints(const Mat &current, NSDictionary *params,
-                                std::vector<cv::Point> &out) {
-    id raw = params[@"points"];
-    if ([raw isKindOfClass:[NSArray class]] && [(NSArray *)raw count] > 0) {
-        for (id p in (NSArray *)raw) {
-            if ([p isKindOfClass:[NSArray class]] && [(NSArray *)p count] >= 2) {
-                out.emplace_back([((NSArray *)p)[0] intValue], [((NSArray *)p)[1] intValue]);
-            }
-        }
-        return !out.empty();
-    }
-    Mat gray = OpenCVEnsureGray(current);
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(gray, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    if (contours.empty()) { return false; }
-    auto largest = std::max_element(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point> &a, const std::vector<cv::Point> &b) {
-            return cv::contourArea(a) < cv::contourArea(b);
-        });
-    out = *largest;
-    return !out.empty();
-}
 
 // Simplify a polygon (explicit points or the largest contour) to corner
 // vertices with Ramer–Douglas–Peucker. `epsilon` is a fraction of perimeter.

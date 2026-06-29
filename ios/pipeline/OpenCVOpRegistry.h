@@ -140,6 +140,13 @@ BOOL OpenCVResolveDrawStyle(NSDictionary *params, NSString *opName,
 /// Returns an empty `cv::Mat` and sets `*error` on failure.
 cv::Mat OpenCVDecodeImageArg(NSString *value, NSError **error);
 
+/// Resolve the points an analysis op should operate on: explicit
+/// `params[@"points"]` (`[[x, y], ...]`) when present, otherwise the largest
+/// external contour of the (binary) `current` image. Appends to `out` and
+/// returns `NO` when neither source yields any points.
+bool OpenCVResolvePoints(const cv::Mat &current, NSDictionary *params,
+                         std::vector<cv::Point> &out);
+
 /// Apply every op in the JSON-decoded `ops` array to `current` in place, in
 /// order. Used by composite ops (e.g. `applyMask`) that run a sub-pipeline on a
 /// copy of the current image. Returns `NO` and sets `*error` on the first

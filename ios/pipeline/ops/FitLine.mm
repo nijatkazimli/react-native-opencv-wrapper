@@ -4,19 +4,20 @@
 
 using cv::Mat;
 
-// Axis-aligned bounding box of explicit points, or of the largest contour.
-OPENCV_REGISTER_DATA_OP(boundingRect, @"boundingRect",
+// Best-fit line (L2) through explicit points or the largest contour.
+OPENCV_REGISTER_DATA_OP(fitLine, @"fitLine",
                         ^NSDictionary *(const Mat &current, NSDictionary *params, NSError **error) {
     std::vector<cv::Point> pts;
     bool found = OpenCVResolvePoints(current, params, pts);
-    id box = [NSNull null];
+    id line = [NSNull null];
     if (found) {
-        cv::Rect r = cv::boundingRect(pts);
-        box = @{ @"x": @(r.x), @"y": @(r.y), @"width": @(r.width), @"height": @(r.height) };
+        cv::Vec4f l;
+        cv::fitLine(pts, l, cv::DIST_L2, 0, 0.01, 0.01);
+        line = @{ @"vx": @(l[0]), @"vy": @(l[1]), @"x0": @(l[2]), @"y0": @(l[3]) };
     }
     return @{
         @"found": @(found),
-        @"boundingBox": box,
+        @"line": line,
         @"width": @(current.cols),
         @"height": @(current.rows),
     };

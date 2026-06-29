@@ -16,6 +16,7 @@ import {
 } from "@nijatk/react-native-opencv-wrapper";
 import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
 import { SAMPLE_DOCUMENT_PHOTO_BASE64 } from "./documentSample";
+import { SAMPLE_LENNA_PHOTO_BASE64 } from "./lennaSample";
 
 // A tiny built-in test image (64x64 RGB checkerboard, base64-encoded PNG) so
 // the example needs no extra assets / camera permissions.
@@ -36,7 +37,16 @@ async function ensureSampleImage() {
 }
 
 /** A named demo: a function that adds ops to a ready pipeline. */
-type Demo = { label: string; configure: (p: ReadyPipeline) => ReadyPipeline };
+type Demo = {
+  label: string;
+  configure: (p: ReadyPipeline) => ReadyPipeline;
+  /**
+   * When set, the demo runs base64-in/base64-out against this image (decoded as
+   * a real photo) and shows it side-by-side with the result. When omitted, the
+   * demo runs file-to-file against the synthetic checkerboard sample.
+   */
+  inputBase64?: string;
+};
 
 const DEMOS: readonly Demo[] = [
   { label: "Gray", configure: (p) => p.gray() },
@@ -215,10 +225,80 @@ const DEMOS: readonly Demo[] = [
     configure: (p) => p.gray().sepFilter2D([1, 0, -1], [1, 2, 1]),
   },
   {
+    label: "Distance",
+    configure: (p) => p.resize(256, 256, "area").distanceTransform("L2"),
+  },
+  { label: "K-Means", configure: (p) => p.resize(256, 256, "area").kmeans(4) },
+  {
+    label: "GrabCut",
+    configure: (p) =>
+      p
+        .resize(256, 256, "area")
+        .grabCut({ x: 40, y: 40, width: 176, height: 176 }, 3),
+  },
+  {
+    label: "Watershed",
+    configure: (p) => p.resize(256, 256, "area").watershed([255, 0, 0]),
+  },
+  {
+    label: "Contours",
+    configure: (p) =>
+      p
+        .resize(256, 256, "area")
+        .gray()
+        .threshold(127, 255, "binary")
+        .drawContours({ color: [57, 255, 20], thickness: 2 }),
+  },
+  {
+    label: "4-Point",
+    configure: (p) =>
+      p.resize(256, 256, "area").fourPointTransform(
+        [
+          [40, 0],
+          [216, 0],
+          [256, 256],
+          [0, 256],
+        ],
+        256,
+        256,
+      ),
+  },
+  {
     label: "Pipeline",
     configure: (p) =>
       p.resize(128, 128, "area").gray().gaussianBlur(7).canny(50, 150),
   },
+];
+
+// Build a demo that runs against the real "Lenna" photo (base64 in / out), so
+// the color & photometric ops have a natural image to work on.
+const lenna = (label: string, configure: Demo["configure"]): Demo => ({
+  label,
+  configure,
+  inputBase64: SAMPLE_LENNA_PHOTO_BASE64,
+});
+
+// Operations that are most meaningful on a genuine photograph rather than the
+// synthetic checkerboard (tonal, color, texture and segmentation ops).
+const LENNA_DEMOS: readonly Demo[] = [
+  lenna("Lenna Gray", (p) => p.gray()),
+  lenna("Lenna Blur", (p) => p.gaussianBlur(9)),
+  lenna("Lenna Bilateral", (p) => p.bilateralFilter(9, 100, 100)),
+  lenna("Lenna CLAHE", (p) => p.clahe(3, 8)),
+  lenna("Lenna Equalize", (p) => p.equalizeHist()),
+  lenna("Lenna Canny", (p) => p.gray().canny(80, 160)),
+  lenna("Lenna Sharpen", (p) =>
+    p.filter2D([
+      [0, -1, 0],
+      [-1, 5, -1],
+      [0, -1, 0],
+    ]),
+  ),
+  lenna("Lenna K-Means", (p) => p.kmeans(8)),
+  lenna("Lenna Watershed", (p) => p.watershed([255, 0, 0])),
+  lenna("Lenna Gamma", (p) => p.lut((x) => 255 * (x / 255) ** 0.5)),
+  lenna("Lenna Sobel", (p) => p.gray().sobel(1, 0, 3)),
+  lenna("Lenna HSV", (p) => p.cvtColor("BGR2HSV")),
 ];
 
 type Result = {
@@ -246,20 +326,42 @@ export default function App() {
     );
   }, []);
 
-  const runDemo = useCallback(async ({ label, configure }: Demo) => {
-    try {
-      const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
-      const outputPath = `${DIR}/out-${safeLabel}-${Date.now()}.png`;
-      const base = pipeline().input(INPUT_PATH).output(outputPath);
-      const path = await configure(base).run();
-      setResults((r) => [
-        { id: path, label, uri: `file://${path}`, note: path },
-        ...r,
-      ]);
-    } catch (e) {
-      setError(`${label}: ${(e as Error).message}`);
-    }
-  }, []);
+  const runDemo = useCallback(
+    async ({ label, configure, inputBase64 }: Demo) => {
+      try {
+        // Photo demos: decode the base64 image, run in-memory, and show the
+        // original alongside the result.
+        if (inputBase64) {
+          const outBase64 = await configure(
+            pipeline().inputBase64(inputBase64).outputBase64("png"),
+          ).run();
+          setResults((r) => [
+            {
+              id: `${label}-${Date.now()}`,
+              label,
+              uri: `data:image/png;base64,${outBase64}`,
+              compareUri: `data:image/jpeg;base64,${inputBase64}`,
+              captions: { left: "original", right: "result" },
+              note: `Lenna photo \u00b7 ${outBase64.length} chars`,
+            },
+            ...r,
+          ]);
+          return;
+        }
+        const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
+        const outputPath = `${DIR}/out-${safeLabel}-${Date.now()}.png`;
+        const base = pipeline().input(INPUT_PATH).output(outputPath);
+        const path = await configure(base).run();
+        setResults((r) => [
+          { id: path, label, uri: `file://${path}`, note: path },
+          ...r,
+        ]);
+      } catch (e) {
+        setError(`${label}: ${(e as Error).message}`);
+      }
+    },
+    [],
+  );
 
   const runBase64Demo = useCallback(async () => {
     try {
@@ -477,6 +579,48 @@ export default function App() {
     }
   }, []);
 
+  const runMeasureDemo = useCallback(async () => {
+    try {
+      // Metrics of the largest contour in the document photo.
+      const base = () =>
+        pipeline().inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64).gray();
+      const area = await base().threshold(120, 255).contourArea();
+      const arc = await base().threshold(120, 255).arcLength();
+      const hull = await base().threshold(120, 255).convexHull();
+      // Whole-image statistics.
+      const stats = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .meanStdDev();
+      const nz = await base().threshold(120, 255).countNonZero();
+      // Visualize: outline the detected contours on the original.
+      const outBase64 = await pipeline()
+        .inputBase64(SAMPLE_DOCUMENT_PHOTO_BASE64)
+        .outputBase64("png")
+        .gray()
+        .threshold(120, 255)
+        .drawContours({ color: [57, 255, 20], thickness: 4, minArea: 500 })
+        .run();
+      const mean = stats.mean.map((m) => m.toFixed(0)).join(",");
+      setResults((r) => [
+        {
+          id: `measure-${Date.now()}`,
+          label: "Measure",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_DOCUMENT_PHOTO_BASE64}`,
+          captions: { left: "original", right: "contours" },
+          note:
+            `area ${area.area.toFixed(0)}px\u00b2 \u00b7 perimeter ${arc.length.toFixed(
+              0,
+            )}px \u00b7 hull ${hull.hull.length} pts \u00b7 ` +
+            `mean [${mean}] \u00b7 fg ${(nz.ratio * 100).toFixed(1)}%`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Measure: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -500,6 +644,18 @@ export default function App() {
         <Button label="Scan B&W" onPress={runScanBwDemo} />
         <Button label="Detect Document" onPress={runDetectDocumentDemo} />
         <Button label="Find Shapes" onPress={runFindShapesDemo} />
+        <Button label="Measure" onPress={runMeasureDemo} />
+      </View>
+
+      <Text style={styles.sectionTitle}>Lenna (photo) demos</Text>
+      <View style={styles.row}>
+        {LENNA_DEMOS.map((demo) => (
+          <Button
+            key={demo.label}
+            label={demo.label}
+            onPress={() => runDemo(demo)}
+          />
+        ))}
       </View>
 
       {results.map((r) => (
@@ -544,6 +700,7 @@ function Button({
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 12 },
   title: { fontSize: 20, fontWeight: "600" },
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginTop: 8 },
   mono: { fontFamily: Platform.select({ ios: "Menlo", android: "monospace" }) },
   error: { color: "red" },
   row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },

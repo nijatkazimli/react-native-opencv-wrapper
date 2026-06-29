@@ -4,19 +4,22 @@
 
 using cv::Mat;
 
-// Axis-aligned bounding box of explicit points, or of the largest contour.
-OPENCV_REGISTER_DATA_OP(boundingRect, @"boundingRect",
+// Convex hull of explicit points, or of the largest contour.
+OPENCV_REGISTER_DATA_OP(convexHull, @"convexHull",
                         ^NSDictionary *(const Mat &current, NSDictionary *params, NSError **error) {
     std::vector<cv::Point> pts;
     bool found = OpenCVResolvePoints(current, params, pts);
-    id box = [NSNull null];
+    NSMutableArray<NSDictionary *> *hull = [NSMutableArray array];
     if (found) {
-        cv::Rect r = cv::boundingRect(pts);
-        box = @{ @"x": @(r.x), @"y": @(r.y), @"width": @(r.width), @"height": @(r.height) };
+        std::vector<cv::Point> h;
+        cv::convexHull(pts, h);
+        for (const cv::Point &p : h) {
+            [hull addObject:@{ @"x": @(p.x), @"y": @(p.y) }];
+        }
     }
     return @{
         @"found": @(found),
-        @"boundingBox": box,
+        @"hull": hull,
         @"width": @(current.cols),
         @"height": @(current.rows),
     };

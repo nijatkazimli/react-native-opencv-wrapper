@@ -464,4 +464,115 @@ describe("Transform op serialization", () => {
       },
     ]);
   });
+
+  it("serializes segmentation & ergonomics ops with defaults", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .distanceTransform()
+      .kmeans()
+      .grabCut({ x: 10, y: 20, width: 100, height: 80 })
+      .watershed()
+      .drawContours()
+      .fourPointTransform([
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ])
+      .run();
+
+    expect(ioCall().ops).toEqual([
+      {
+        type: "distanceTransform",
+        distanceType: "L2",
+        maskSize: 3,
+        normalize: true,
+      },
+      { type: "kmeans", k: 8, attempts: 3, iterations: 10 },
+      {
+        type: "grabCut",
+        rect: { x: 10, y: 20, width: 100, height: 80 },
+        iterations: 5,
+      },
+      { type: "watershed", lineColor: [255, 0, 0] },
+      {
+        type: "drawContours",
+        color: [0, 255, 0],
+        thickness: 2,
+        minArea: 0,
+        antialias: true,
+      },
+      {
+        type: "fourPointTransform",
+        points: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+      },
+    ]);
+  });
+
+  it("forwards explicit segmentation & ergonomics parameters", async () => {
+    await pipeline()
+      .input("/in.png")
+      .output("/out.png")
+      .distanceTransform("L1", 5, false)
+      .kmeans(4, 1, 5)
+      .grabCut({ x: 1, y: 2, width: 30, height: 40 }, 8)
+      .watershed([0, 0, 255])
+      .drawContours({
+        color: [255, 0, 255],
+        thickness: -1,
+        minArea: 25,
+        antialias: false,
+      })
+      .fourPointTransform(
+        [
+          [1, 1],
+          [9, 1],
+          [9, 9],
+          [1, 9],
+        ],
+        200,
+        150,
+      )
+      .run();
+
+    expect(ioCall().ops).toEqual([
+      {
+        type: "distanceTransform",
+        distanceType: "L1",
+        maskSize: 5,
+        normalize: false,
+      },
+      { type: "kmeans", k: 4, attempts: 1, iterations: 5 },
+      {
+        type: "grabCut",
+        rect: { x: 1, y: 2, width: 30, height: 40 },
+        iterations: 8,
+      },
+      { type: "watershed", lineColor: [0, 0, 255] },
+      {
+        type: "drawContours",
+        color: [255, 0, 255],
+        thickness: -1,
+        minArea: 25,
+        antialias: false,
+      },
+      {
+        type: "fourPointTransform",
+        points: [
+          [1, 1],
+          [9, 1],
+          [9, 9],
+          [1, 9],
+        ],
+        width: 200,
+        height: 150,
+      },
+    ]);
+  });
 });
