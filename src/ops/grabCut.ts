@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** A rectangle, as used to seed {@link Pipeline.grabCut}. */
 export interface Rect {
@@ -30,6 +31,32 @@ declare module "../core/pipeline" {
   }
 }
 
+export const grabCutDoc: OpDoc = {
+  name: "GrabCut Foreground Extraction",
+  category: "segmentation",
+  kind: "image",
+  method:
+    "grabCut(rect: { x: number; y: number; width: number; height: number }, iterations?: number): Pipeline",
+  standalone: "grabCut(input, output, rect, iterations?)",
+  desc: "GrabCut foreground extraction seeded by a rectangle. Pixels outside rect are treated as background; background pixels in the result are set to black.",
+  params: [
+    {
+      name: "rect",
+      type: "{ x, y, width, height }",
+      req: true,
+      def: null,
+      desc: "Rectangle (in pixels) enclosing the foreground object.",
+    },
+    {
+      name: "iterations",
+      type: "number",
+      req: false,
+      def: "5",
+      desc: "GrabCut refinement iterations.",
+    },
+  ],
+  notes: null,
+};
 registerOp("grabCut", (rect: Rect, iterations = 5) => ({
   rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
   iterations,

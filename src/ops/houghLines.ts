@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.houghLines}. */
 export interface HoughLinesOptions {
@@ -50,6 +51,60 @@ declare module "../core/pipeline" {
   }
 }
 
+export const houghLinesDoc: OpDoc = {
+  name: "Hough Line Detection",
+  category: "feature-detection",
+  kind: "data",
+  method:
+    "houghLines(options?: { rho?: number; theta?: number; threshold?: number; minLineLength?: number; maxLineGap?: number }): Promise<HoughLinesResult>",
+  standalone: null,
+  desc: "Detect line segments with the probabilistic Hough transform. Treats the image as edges; chain gray() + canny() first for best results.",
+  params: [
+    {
+      name: "options.rho",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Distance resolution of the accumulator (px).",
+    },
+    {
+      name: "options.theta",
+      type: "number",
+      req: false,
+      def: "Math.PI / 180",
+      desc: "Angle resolution (rad).",
+    },
+    {
+      name: "options.threshold",
+      type: "number",
+      req: false,
+      def: "80",
+      desc: "Accumulator threshold; only lines with enough votes are returned.",
+    },
+    {
+      name: "options.minLineLength",
+      type: "number",
+      req: false,
+      def: "30",
+      desc: "Minimum line length; shorter segments are rejected (px).",
+    },
+    {
+      name: "options.maxLineGap",
+      type: "number",
+      req: false,
+      def: "10",
+      desc: "Maximum allowed gap between collinear points (px).",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  count: number,
+  lines: Array<{ x1, y1, x2, y2 }>,
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("houghLines", (options: HoughLinesOptions = {}) => {
   const {
     rho = 1,

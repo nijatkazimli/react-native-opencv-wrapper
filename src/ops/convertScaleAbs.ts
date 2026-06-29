@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -22,4 +23,29 @@ declare module "../core/pipeline" {
   }
 }
 
+export const convertScaleAbsDoc: OpDoc = {
+  name: "Brightness / Contrast",
+  category: "histogram-tone",
+  kind: "image",
+  method: "convertScaleAbs(alpha?: number, beta?: number): Pipeline",
+  standalone: "convertScaleAbs(input, output, alpha?, beta?)",
+  desc: "Brightness/contrast adjustment: out = |alpha · current + beta|, saturated to 8-bit.",
+  params: [
+    {
+      name: "alpha",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Contrast gain (multiplier).",
+    },
+    {
+      name: "beta",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Brightness bias (added).",
+    },
+  ],
+  notes: null,
+};
 registerOp("convertScaleAbs", (alpha = 1, beta = 0) => ({ alpha, beta }));

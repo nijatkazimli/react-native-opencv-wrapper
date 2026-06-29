@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 import type { Quad } from "./warpPerspective";
 
 declare module "../core/pipeline" {
@@ -30,6 +31,39 @@ declare module "../core/pipeline" {
   }
 }
 
+export const fourPointTransformDoc: OpDoc = {
+  name: "Four-Point Transform",
+  category: "geometry-transforms",
+  kind: "image",
+  method:
+    "fourPointTransform(points: [x, y][], width?: number, height?: number): Pipeline",
+  standalone: "fourPointTransform(input, output, points, width?, height?)",
+  desc: "Deskew/flatten a quadrilateral to a straight rectangle — a one-call convenience over warpPerspective.",
+  params: [
+    {
+      name: "points",
+      type: "readonly [number, number][]",
+      req: true,
+      def: null,
+      desc: "Four source [x, y] corners ordered TL, TR, BR, BL.",
+    },
+    {
+      name: "width",
+      type: "number",
+      req: false,
+      def: "current",
+      desc: "Output width (px, > 0).",
+    },
+    {
+      name: "height",
+      type: "number",
+      req: false,
+      def: "current",
+      desc: "Output height (px, > 0).",
+    },
+  ],
+  notes: "Requires exactly 4 points.",
+};
 registerOp(
   "fourPointTransform",
   (points: Quad, width?: number, height?: number) => ({

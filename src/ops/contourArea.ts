@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.contourArea}. */
 export interface ContourAreaOptions {
@@ -36,6 +37,26 @@ declare module "../core/pipeline" {
   }
 }
 
+export const contourAreaDoc: OpDoc = {
+  name: "Contour Area",
+  category: "contours-shape",
+  kind: "data",
+  method:
+    "contourArea(options?: { points?: [x, y][] }): Promise<ContourAreaResult>",
+  standalone: null,
+  desc: "Enclosed area of the given points or the largest external contour.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used.",
+    },
+  ],
+  returns: `{ found: boolean, area: number, width: number, height: number }`,
+  notes: null,
+};
 registerDataOp("contourArea", (options: ContourAreaOptions = {}) => {
   const params: Record<string, unknown> = {};
   if (options.points) {

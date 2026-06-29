@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -19,4 +20,14 @@ declare module "../core/pipeline" {
   }
 }
 
+export const equalizeHistDoc: OpDoc = {
+  name: "Histogram Equalization",
+  category: "histogram-tone",
+  kind: "image",
+  method: "equalizeHist(): Pipeline",
+  standalone: "equalizeHist(input, output)",
+  desc: "Global histogram equalization to spread out intensities and boost contrast. A common pre-step for OCR/scanning. Result is single-channel.",
+  params: [],
+  notes: "Grayscales internally; returns a single-channel image.",
+};
 registerOp("equalizeHist", () => ({}));

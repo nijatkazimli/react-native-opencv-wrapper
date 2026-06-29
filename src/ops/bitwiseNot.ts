@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -18,4 +19,14 @@ declare module "../core/pipeline" {
   }
 }
 
+export const bitwiseNotDoc: OpDoc = {
+  name: "Bitwise NOT (Invert)",
+  category: "masking-bitwise",
+  kind: "image",
+  method: "bitwiseNot(): Pipeline",
+  standalone: "bitwiseNot(input, output)",
+  desc: "Per-pixel bitwise inversion. On a binary mask this swaps foreground and background (0 ↔ 255).",
+  params: [],
+  notes: null,
+};
 registerOp("bitwiseNot");

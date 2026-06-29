@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -31,6 +32,47 @@ declare module "../core/pipeline" {
   }
 }
 
+export const blendDoc: OpDoc = {
+  name: "Blend / Weighted Sum",
+  category: "drawing",
+  kind: "image",
+  method:
+    "blend(source: string, alpha?: number, beta?: number, gamma?: number): Pipeline",
+  standalone: "blend(input, output, source, alpha?, beta?, gamma?)",
+  desc: "Weighted blend: out = alpha · current + beta · source + gamma. Useful for watermarks, overlays, and before/after composites.",
+  params: [
+    {
+      name: "source",
+      type: "string",
+      req: true,
+      def: null,
+      desc: "Second image as an absolute file path or base64 string; decoded and resized to match the current image.",
+    },
+    {
+      name: "alpha",
+      type: "number",
+      req: false,
+      def: "0.5",
+      desc: "Weight of the current image.",
+    },
+    {
+      name: "beta",
+      type: "number",
+      req: false,
+      def: "0.5",
+      desc: "Weight of the source image.",
+    },
+    {
+      name: "gamma",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Scalar added to the sum.",
+    },
+  ],
+  notes:
+    "The source image is automatically resized to match the current dimensions.",
+};
 registerOp("blend", (source: string, alpha = 0.5, beta = 0.5, gamma = 0) => ({
   source,
   alpha,

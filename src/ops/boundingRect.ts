@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.boundingRect}. */
 export interface BoundingRectOptions {
@@ -35,6 +36,31 @@ declare module "../core/pipeline" {
   }
 }
 
+export const boundingRectDoc: OpDoc = {
+  name: "Bounding Rectangle",
+  category: "contours-shape",
+  kind: "data",
+  method:
+    "boundingRect(options?: { points?: [x, y][] }): Promise<BoundingRectResult>",
+  standalone: null,
+  desc: "Axis-aligned bounding box of the given points or the largest contour.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used.",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  boundingBox: { x, y, width, height } | null,
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("boundingRect", (options: BoundingRectOptions = {}) => {
   const params: Record<string, unknown> = {};
   if (options.points) {

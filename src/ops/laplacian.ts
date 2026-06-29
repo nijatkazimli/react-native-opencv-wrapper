@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 declare module "../core/pipeline" {
   interface OpArgsMap {
@@ -28,6 +29,38 @@ declare module "../core/pipeline" {
   }
 }
 
+export const laplacianDoc: OpDoc = {
+  name: "Laplacian Edge Detection",
+  category: "edges-gradients",
+  kind: "image",
+  method: "laplacian(ksize?: number, scale?: number, delta?: number): Pipeline",
+  standalone: "laplacian(input, output, ksize?, scale?, delta?)",
+  desc: "Isotropic second-derivative edge detector. The signed response is returned as an absolute 8-bit image. Call gray() first for single-channel edges.",
+  params: [
+    {
+      name: "ksize",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Odd aperture size 1 | 3 | 5 | 7; 1 uses a 3×3 [[0,1,0],[1,-4,1],[0,1,0]] kernel.",
+    },
+    {
+      name: "scale",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Scale applied to the computed derivative.",
+    },
+    {
+      name: "delta",
+      type: "number",
+      req: false,
+      def: "0",
+      desc: "Value added before saturation.",
+    },
+  ],
+  notes: "ksize must be odd; returns an absolute 8-bit image.",
+};
 registerOp("laplacian", (ksize = 1, scale = 1, delta = 0) => ({
   ksize,
   scale,

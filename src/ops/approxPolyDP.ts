@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.approxPolyDP}. */
 export interface ApproxPolyDPOptions {
@@ -44,6 +45,45 @@ declare module "../core/pipeline" {
   }
 }
 
+export const approxPolyDPDoc: OpDoc = {
+  name: "Approximate Polygon",
+  category: "contours-shape",
+  kind: "data",
+  method:
+    "approxPolyDP(options?: { points?: [x, y][]; epsilon?: number; closed?: boolean }): Promise<ApproxPolyDPResult>",
+  standalone: null,
+  desc: "Simplify a polygon (given points or the largest contour) to corner vertices via the Ramer–Douglas–Peucker algorithm.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used.",
+    },
+    {
+      name: "options.epsilon",
+      type: "number",
+      req: false,
+      def: "0.02",
+      desc: "Approximation accuracy as a fraction of the perimeter (larger simplifies more).",
+    },
+    {
+      name: "options.closed",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "The polygon is closed.",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  points: Array<{ x, y }>,
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("approxPolyDP", (options: ApproxPolyDPOptions = {}) => {
   const { epsilon = 0.02, closed = true } = options;
   const params: Record<string, unknown> = { epsilon, closed };

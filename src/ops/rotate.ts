@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Clockwise rotation angles accepted by {@link Pipeline.rotate}. */
 export type RotateAngle = 90 | 180 | 270;
@@ -22,4 +23,22 @@ declare module "../core/pipeline" {
   }
 }
 
+export const rotateDoc: OpDoc = {
+  name: "Rotate by Right Angle",
+  category: "geometry-transforms",
+  kind: "image",
+  method: "rotate(angle: 90 | 180 | 270): Pipeline",
+  standalone: "rotate(input, output, angle)",
+  desc: "Clockwise rotation by a right angle.",
+  params: [
+    {
+      name: "angle",
+      type: "90 | 180 | 270",
+      req: true,
+      def: null,
+      desc: "Clockwise rotation in degrees.",
+    },
+  ],
+  notes: "Only 90, 180, and 270 are allowed.",
+};
 registerOp("rotate", (angle: RotateAngle) => ({ angle }));

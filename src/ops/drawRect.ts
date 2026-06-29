@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /**
  * An RGB color, each channel in `0–255` (e.g. `[255, 0, 0]` is red). Drawing
@@ -60,6 +61,68 @@ declare module "../core/pipeline" {
   }
 }
 
+export const drawRectDoc: OpDoc = {
+  name: "Draw Rectangle",
+  category: "drawing",
+  kind: "image",
+  method:
+    "drawRect(x: number, y: number, width: number, height: number, options?: { color?: [r, g, b]; thickness?: number; fillColor?: [r, g, b]; antialias?: boolean }): Pipeline",
+  standalone: "drawRect(input, output, x, y, width, height, options?)",
+  desc: "Draw a rectangle outline (optionally filled) on the current image. Box a detected region; the image is passed on unchanged in size and type.",
+  params: [
+    {
+      name: "x",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Left edge (px).",
+    },
+    { name: "y", type: "number", req: true, def: null, desc: "Top edge (px)." },
+    {
+      name: "width",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Width (px, > 0).",
+    },
+    {
+      name: "height",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Height (px, > 0).",
+    },
+    {
+      name: "options.color",
+      type: "[r, g, b]",
+      req: false,
+      def: "[255, 0, 0]",
+      desc: "Stroke color (0–255 each).",
+    },
+    {
+      name: "options.thickness",
+      type: "number",
+      req: false,
+      def: "2",
+      desc: "Stroke width (px, ≥ 1).",
+    },
+    {
+      name: "options.fillColor",
+      type: "[r, g, b]",
+      req: false,
+      def: "undefined",
+      desc: "Optional solid fill, drawn under the stroke.",
+    },
+    {
+      name: "options.antialias",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Smooth edges.",
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "drawRect",
   (

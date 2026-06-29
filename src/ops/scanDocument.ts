@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /**
  * How the rectified document is rendered:
@@ -53,6 +54,33 @@ declare module "../core/pipeline" {
   }
 }
 
+export const scanDocumentDoc: OpDoc = {
+  name: "Document Scanner",
+  category: "document",
+  kind: "image",
+  method:
+    'scanDocument(options?: { mode?: "color" | "gray" | "bw"; aspectRatio?: number }): Pipeline',
+  standalone: "scanDocument(input, output, options?)",
+  desc: "Detect the largest document-like quadrilateral and return a top-down, perspective-corrected crop. Internally: grayscale → downscale → blur → adaptive Canny → morphological close → largest 4-point convex contour → perspective warp.",
+  params: [
+    {
+      name: "options.mode",
+      type: '"color" | "gray" | "bw"',
+      req: false,
+      def: '"color"',
+      desc: '"bw" applies an adaptive threshold for a crisp black-and-white scan.',
+    },
+    {
+      name: "options.aspectRatio",
+      type: "number",
+      req: false,
+      def: "undefined",
+      desc: "Force the output to a width/height ratio (must be positive); inferred from the detected edges when omitted.",
+    },
+  ],
+  notes:
+    "Rejects with opencv_document_not_found when no suitable quad is detected.",
+};
 registerOp("scanDocument", (options: ScanDocumentOptions = {}) => {
   const params: Record<string, unknown> = {};
   if (options.mode !== undefined) params.mode = options.mode;

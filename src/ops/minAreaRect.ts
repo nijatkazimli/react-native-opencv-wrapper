@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.minAreaRect}. */
 export interface MinAreaRectOptions {
@@ -45,6 +46,31 @@ declare module "../core/pipeline" {
   }
 }
 
+export const minAreaRectDoc: OpDoc = {
+  name: "Min-Area Rotated Rect",
+  category: "contours-shape",
+  kind: "data",
+  method:
+    "minAreaRect(options?: { points?: [x, y][] }): Promise<MinAreaRectResult>",
+  standalone: null,
+  desc: "Rotated minimum-area bounding rectangle of the given points or the largest contour.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used.",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  minAreaRect: { centerX, centerY, width, height, angle } | null,
+  width: number,
+  height: number
+}`,
+  notes: "angle is in degrees.",
+};
 registerDataOp("minAreaRect", (options: MinAreaRectOptions = {}) => {
   const params: Record<string, unknown> = {};
   if (options.points) {

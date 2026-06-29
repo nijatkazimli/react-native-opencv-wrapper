@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Structured result of a {@link Pipeline.meanStdDev} analysis. */
 export interface MeanStdDevResult {
@@ -27,4 +28,21 @@ declare module "../core/pipeline" {
   }
 }
 
+export const meanStdDevDoc: OpDoc = {
+  name: "Mean & Std Deviation",
+  category: "analysis-measurement",
+  kind: "data",
+  method: "meanStdDev(): Promise<MeanStdDevResult>",
+  standalone: null,
+  desc: "Per-channel mean and standard deviation. Useful for exposure and contrast checks.",
+  params: [],
+  returns: `{
+  mean: number[],     // one entry per channel
+  stddev: number[],
+  channels: number,
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("meanStdDev", () => ({}));

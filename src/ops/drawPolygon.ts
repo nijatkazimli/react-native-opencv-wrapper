@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 import type { Color } from "./drawRect";
 
 /** A 2D point as `[x, y]` in pixel coordinates. */
@@ -48,6 +49,60 @@ declare module "../core/pipeline" {
   }
 }
 
+export const drawPolygonDoc: OpDoc = {
+  name: "Draw Polygon / Polyline",
+  category: "drawing",
+  kind: "image",
+  method:
+    "drawPolygon(points: [x, y][], options?: { color?: [r, g, b]; thickness?: number; closed?: boolean; fillColor?: [r, g, b]; antialias?: boolean }): Pipeline",
+  standalone: "drawPolygon(input, output, points, options?)",
+  desc: "Draw a polyline/polygon through points on the current image. Outline detected corners (e.g. from detectDocument).",
+  params: [
+    {
+      name: "points",
+      type: "readonly [number, number][]",
+      req: true,
+      def: null,
+      desc: "Vertices as [x, y] pairs (at least 2).",
+    },
+    {
+      name: "options.color",
+      type: "[r, g, b]",
+      req: false,
+      def: "[255, 0, 0]",
+      desc: "Stroke color (0–255 each).",
+    },
+    {
+      name: "options.thickness",
+      type: "number",
+      req: false,
+      def: "2",
+      desc: "Stroke width (px, ≥ 1).",
+    },
+    {
+      name: "options.closed",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Connect the last point back to the first.",
+    },
+    {
+      name: "options.fillColor",
+      type: "[r, g, b]",
+      req: false,
+      def: "undefined",
+      desc: "Optional solid fill, drawn under the stroke.",
+    },
+    {
+      name: "options.antialias",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Smooth edges.",
+    },
+  ],
+  notes: "Requires at least 2 points.",
+};
 registerOp(
   "drawPolygon",
   (points: readonly Point2D[], options: DrawPolygonOptions = {}) => {

@@ -1,5 +1,6 @@
 import { registerOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 import type { Color } from "./drawRect";
 
 /** Styling options for {@link Pipeline.putText}. */
@@ -43,6 +44,67 @@ declare module "../core/pipeline" {
   }
 }
 
+export const putTextDoc: OpDoc = {
+  name: "Put Text Label",
+  category: "drawing",
+  kind: "image",
+  method:
+    "putText(text: string, x: number, y: number, options?: { fontScale?: number; color?: [r, g, b]; thickness?: number; antialias?: boolean }): Pipeline",
+  standalone: "putText(input, output, text, x, y, options?)",
+  desc: "Draw a text label (Hershey simplex font) on the image. (x, y) is the bottom-left corner; image is passed on unchanged.",
+  params: [
+    {
+      name: "text",
+      type: "string",
+      req: true,
+      def: null,
+      desc: "Label to render (non-empty).",
+    },
+    {
+      name: "x",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Bottom-left X of the text (px).",
+    },
+    {
+      name: "y",
+      type: "number",
+      req: true,
+      def: null,
+      desc: "Bottom-left Y of the text (px).",
+    },
+    {
+      name: "options.fontScale",
+      type: "number",
+      req: false,
+      def: "1",
+      desc: "Font size multiplier (> 0).",
+    },
+    {
+      name: "options.color",
+      type: "[r, g, b]",
+      req: false,
+      def: "[255, 0, 0]",
+      desc: "Text color (0–255 each).",
+    },
+    {
+      name: "options.thickness",
+      type: "number",
+      req: false,
+      def: "2",
+      desc: "Stroke width (px, ≥ 1).",
+    },
+    {
+      name: "options.antialias",
+      type: "boolean",
+      req: false,
+      def: "true",
+      desc: "Smooth edges.",
+    },
+  ],
+  notes: null,
+};
 registerOp(
   "putText",
   (text: string, x: number, y: number, options: PutTextOptions = {}) => {

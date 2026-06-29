@@ -1,5 +1,6 @@
 import { registerDataOp } from "../core/pipeline";
 import type { InputState, OutputState } from "../core/state";
+import type { OpDoc } from "./docTypes";
 
 /** Options for {@link Pipeline.fitLine}. */
 export interface FitLineOptions {
@@ -47,6 +48,30 @@ declare module "../core/pipeline" {
   }
 }
 
+export const fitLineDoc: OpDoc = {
+  name: "Fit Line",
+  category: "contours-shape",
+  kind: "data",
+  method: "fitLine(options?: { points?: [x, y][] }): Promise<FitLineResult>",
+  standalone: null,
+  desc: "Best-fit line through the given points or the largest contour (L2 distance), expressed as a unit direction vector (vx, vy) and a point on the line.",
+  params: [
+    {
+      name: "options.points",
+      type: "readonly [number, number][]",
+      req: false,
+      def: "undefined",
+      desc: "Explicit [x, y] points; when omitted, the largest external contour is used.",
+    },
+  ],
+  returns: `{
+  found: boolean,
+  line: { vx, vy, x0, y0 } | null,
+  width: number,
+  height: number
+}`,
+  notes: null,
+};
 registerDataOp("fitLine", (options: FitLineOptions = {}) => {
   const params: Record<string, unknown> = {};
   if (options.points) {
