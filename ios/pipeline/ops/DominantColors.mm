@@ -10,51 +10,25 @@ using cv::Mat;
 // data.
 OPENCV_REGISTER_DATA_OP(dominantColors, @"dominantColors",
                         ^NSDictionary *(const Mat &current, NSDictionary *params, NSError **error) {
-    int k = params[@"k"] ? [params[@"k"] intValue] : 5;
-    if (k < 1) {
-        if (error) *error = OpenCVMakeError(@"dominantColors 'k' must be >= 1");
-        return nil;
-    }
-    int attempts = params[@"attempts"] ? [params[@"attempts"] intValue] : 3;
-    if (attempts < 1) { attempts = 1; }
-    int iterations = params[@"iterations"] ? [params[@"iterations"] intValue] : 10;
-    if (iterations < 1) { iterations = 1; }
+    OpenCVKmeansResult km;
+    if (!OpenCVRunKmeansBgr(current, params, 5, @"dominantColors", &km, error)) return nil;
 
-    Mat img;
-    if (current.channels() == 1) {
-        cv::cvtColor(current, img, cv::COLOR_GRAY2BGR);
-    } else {
-        img = current;
+    std::vector<int> populations(km.k, 0);
+    for (int i = 0; i < km.sampleCount; i++) {
+        populations[km.labels.at<int>(i, 0)]++;
     }
 
-    int sampleCount = img.rows * img.cols;
-    if (k > sampleCount) { k = sampleCount; }
-
-    Mat data;
-    img.convertTo(data, CV_32F);
-    data = data.reshape(1, sampleCount);  // sampleCount x 3
-
-    Mat labels, centers;
-    cv::TermCriteria crit(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER,
-                          iterations, 1.0);
-    cv::kmeans(data, k, labels, crit, attempts, cv::KMEANS_PP_CENTERS, centers);
-
-    std::vector<int> populations(k, 0);
-    for (int i = 0; i < sampleCount; i++) {
-        populations[labels.at<int>(i, 0)]++;
-    }
-
-    NSMutableArray<NSDictionary *> *colors = [NSMutableArray arrayWithCapacity:k];
-    for (int c = 0; c < k; c++) {
+    NSMutableArray<NSDictionary *> *colors = [NSMutableArray arrayWithCapacity:km.k];
+    for (int c = 0; c < km.k; c++) {
         // centers are BGR; expose RGB to JS.
-        int b = cv::saturate_cast<uchar>(centers.at<float>(c, 0));
-        int g = cv::saturate_cast<uchar>(centers.at<float>(c, 1));
-        int r = cv::saturate_cast<uchar>(centers.at<float>(c, 2));
+        int b = cv::saturate_cast<uchar>(km.centers.at<float>(c, 0));
+        int g = cv::saturate_cast<uchar>(km.centers.at<float>(c, 1));
+        int r = cv::saturate_cast<uchar>(km.centers.at<float>(c, 2));
         [colors addObject:@{
             @"color": @{ @"r": @(r), @"g": @(g), @"b": @(b) },
             @"hex": [NSString stringWithFormat:@"#%02X%02X%02X", r, g, b],
             @"population": @(populations[c]),
-            @"fraction": @((double)populations[c] / sampleCount),
+            @"fraction": @((double)populations[c] / km.sampleCount),
         }];
     }
     [colors sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
