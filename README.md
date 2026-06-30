@@ -121,7 +121,8 @@ const failed = results.filter((r) => r.status === "rejected");
 ```
 
 Inputs and outputs accept absolute paths or `{ base64 }` descriptors, so a
-batch can run entirely in memory. See the
+batch can run entirely in memory. Pass `onProgress` to drive a progress bar.
+See the
 [Batch processing](https://nijatkazimli.github.io/react-native-opencv-wrapper/#batch)
 docs for details.
 

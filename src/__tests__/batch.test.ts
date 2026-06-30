@@ -84,6 +84,29 @@ describe("runBatch", () => {
     });
   });
 
+  it("reports progress as each item completes", async () => {
+    native.runPipelineIO.mockRejectedValueOnce(new Error("boom"));
+    const progress: Array<[number, number, string]> = [];
+
+    await runBatch(
+      pipeline().gray().toJSON(),
+      [
+        { input: "/a.jpg", output: "/a.png" },
+        { input: "/b.jpg", output: "/b.png" },
+      ],
+      {
+        concurrency: 1,
+        onProgress: (completed, total, result) =>
+          progress.push([completed, total, result.status]),
+      },
+    );
+
+    expect(progress).toEqual([
+      [1, 2, "rejected"],
+      [2, 2, "fulfilled"],
+    ]);
+  });
+
   it("processes all items at once by default", async () => {
     let active = 0;
     let peak = 0;

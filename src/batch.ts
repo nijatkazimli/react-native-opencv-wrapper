@@ -34,6 +34,13 @@ export interface BatchOptions {
    * large images. Values below 1 are treated as 1.
    */
   concurrency?: number;
+  /**
+   * Called once per item as it finishes (in completion order, which may differ
+   * from input order when {@link BatchOptions.concurrency} > 1). `completed`
+   * counts items done so far out of `total`, and `result` is that item's
+   * outcome — handy for driving a progress bar.
+   */
+  onProgress?: (completed: number, total: number, result: BatchResult) => void;
 }
 
 /**
@@ -80,19 +87,24 @@ export async function runBatch(
   items: readonly BatchItem[],
   options: BatchOptions = {},
 ): Promise<BatchResult[]> {
-  const { concurrency = items.length } = options;
+  const { concurrency = items.length, onProgress } = options;
   const results: BatchResult[] = [];
   let next = 0;
+  let completed = 0;
 
   async function worker(): Promise<void> {
     while (next < items.length) {
       const index = next++;
+      let result: BatchResult;
       try {
         const output = await buildItem(recipe, items[index]!).run();
-        results[index] = { index, status: "fulfilled", output };
+        result = { index, status: "fulfilled", output };
       } catch (error) {
-        results[index] = { index, status: "rejected", error: error as Error };
+        result = { index, status: "rejected", error: error as Error };
       }
+      results[index] = result;
+      completed++;
+      onProgress?.(completed, items.length, result);
     }
   }
 

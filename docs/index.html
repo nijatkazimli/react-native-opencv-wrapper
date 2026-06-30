@@ -434,6 +434,17 @@ const failed = results.filter((r) => r.status === "rejected");</code></pre>
   ],
   { concurrency: 4 }, // at most 4 images in flight at a time
 );</code></pre>
+
+          <h3>Progress</h3>
+          <p>
+            Pass <code>onProgress</code> to drive a progress bar: it fires once
+            per item as it finishes (in completion order), with the running
+            count, the total, and that item&rsquo;s result.
+          </p>
+          <pre class="code"><code>await runBatch(recipe, items, {
+  onProgress: (completed, total, result) =&gt;
+    console.log(`${completed}/${total}`, result.status),
+});</code></pre>
         </section>
 
         <!-- I/O model -->

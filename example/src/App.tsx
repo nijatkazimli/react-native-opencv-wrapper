@@ -739,27 +739,22 @@ export default function App() {
 
   const runBatchDemo = useCallback(async () => {
     try {
-      // Apply one preset across several images in a single call. Here we reuse
-      // the same source three times with different presets-as-recipes to show
-      // batch processing; in a real app these would be different files.
-      const recipes = [
-        presets.edges,
-        presets.crispScan,
-        presets.softenPortrait,
-      ];
-      const labels = ["edges", "crispScan", "softenPortrait"];
-      const settled = await Promise.all(
-        recipes.map((recipe) =>
-          runBatch(recipe, [
-            {
-              input: { base64: SAMPLE_LENNA_PHOTO_BASE64 },
-              output: { base64: "png" },
-            },
-          ]),
-        ),
-      );
-      const ok = settled.filter((r) => r[0]?.status === "fulfilled").length;
-      const first = settled[0]?.[0];
+      // One preset, many images: process three copies of the sample in a
+      // single runBatch call (concurrency 2) and report progress as each
+      // finishes. In a real app these would be different files.
+      const items = [0, 1, 2].map(() => ({
+        input: { base64: SAMPLE_LENNA_PHOTO_BASE64 },
+        output: { base64: "png" } as const,
+      }));
+      let progressNote = "";
+      const settled = await runBatch(presets.edges, items, {
+        concurrency: 2,
+        onProgress: (done, total) => {
+          progressNote = `${done}/${total} done`;
+        },
+      });
+      const ok = settled.filter((r) => r.status === "fulfilled").length;
+      const first = settled[0];
       const preview =
         first?.status === "fulfilled"
           ? `data:image/png;base64,${first.output}`
@@ -767,16 +762,47 @@ export default function App() {
       setResults((r) => [
         {
           id: `batch-${Date.now()}`,
-          label: "Batch: Presets",
+          label: "Batch: Edges x3",
           uri: preview,
           compareUri: `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`,
-          captions: { left: "original", right: labels[0] },
-          note: `runBatch \u00b7 ${ok}/${recipes.length} ok`,
+          captions: { left: "original", right: "edges" },
+          note: `runBatch \u00b7 ${ok}/${items.length} ok \u00b7 ${progressNote}`,
         },
         ...r,
       ]);
     } catch (e) {
       setError(`Batch: ${(e as Error).message}`);
+    }
+  }, []);
+
+  const runPresetGalleryDemo = useCallback(async () => {
+    try {
+      // Render every built-in preset over the same sample so they can be
+      // compared side by side against the original.
+      const names = Object.keys(presets) as Array<keyof typeof presets>;
+      const tiles = await Promise.all(
+        names.map(async (name) => ({
+          name,
+          out: await pipeline()
+            .inputBase64(SAMPLE_LENNA_PHOTO_BASE64)
+            .outputBase64("png")
+            .apply(presets[name])
+            .run(),
+        })),
+      );
+      setResults((r) => [
+        ...tiles.map(({ name, out }) => ({
+          id: `gallery-${name}-${Date.now()}`,
+          label: `Gallery: ${name}`,
+          uri: `data:image/png;base64,${out}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`,
+          captions: { left: "original", right: name },
+          note: `presets.${name}`,
+        })),
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Gallery: ${(e as Error).message}`);
     }
   }, []);
 
@@ -807,7 +833,8 @@ export default function App() {
         <Button label="Dominant Colors" onPress={runDominantColorsDemo} />
         <Button label="Corners" onPress={runCornersDemo} />
         <Button label="Preset: Edges" onPress={runPresetDemo} />
-        <Button label="Batch: Presets" onPress={runBatchDemo} />
+        <Button label="Batch: Edges x3" onPress={runBatchDemo} />
+        <Button label="Preset Gallery" onPress={runPresetGalleryDemo} />
       </View>
 
       <Text style={styles.sectionTitle}>Lenna (photo) demos</Text>
