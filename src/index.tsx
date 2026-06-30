@@ -6,6 +6,13 @@
 export * from "./ops";
 
 export { pipeline, Pipeline } from "./core/pipeline";
-export type { ReadyPipeline, ImageFormat } from "./core/pipeline";
+export type {
+  ReadyPipeline,
+  ImageFormat,
+  PipelineRecipe,
+} from "./core/pipeline";
+
+export { presets } from "./presets";
+export type { PresetName } from "./presets";
 
 export * from "./standalone";
