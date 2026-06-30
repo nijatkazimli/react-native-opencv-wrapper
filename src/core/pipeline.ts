@@ -212,7 +212,7 @@ export class Pipeline<
       );
     }
     if (!Array.isArray(ops)) {
-      throw new Error(
+      throw new TypeError(
         "Pipeline.fromJSON: invalid recipe (expected an 'ops' array)",
       );
     }
