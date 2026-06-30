@@ -276,6 +276,15 @@ await Pipeline.fromJSON(json)        // string or PipelineRecipe
   .input("/abs/in.jpg")
   .output("/abs/out.png")
   .run();</code></pre>
+          <p class="muted">
+            Because recipes often come from disk, the network, or a saved user
+            filter, <code>fromJSON()</code> validates them defensively: it
+            throws a descriptive error if the recipe is not an object, carries
+            an unsupported <code>version</code>, has no <code>ops</code> array,
+            or references an op <code>type</code> that isn&rsquo;t registered
+            &mdash; so a bad recipe fails fast instead of erroring opaquely at
+            run time.
+          </p>
 
           <h3>Compose &mdash; <code>apply()</code></h3>
           <p>

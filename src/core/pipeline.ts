@@ -189,19 +189,48 @@ export class Pipeline<
    * untyped with respect to input/output state, so call
    * {@link Pipeline.input}/{@link Pipeline.output} (or their base64 variants)
    * before {@link Pipeline.run} to satisfy the type-state checks.
+   *
+   * Because recipes routinely arrive from untrusted places (disk, network, a
+   * persisted user filter), the shape is validated defensively: the recipe
+   * must be an object with a supported `version`, an `ops` array, and every op
+   * must name a `type` that is actually registered. Any violation throws a
+   * descriptive error rather than producing a pipeline that fails opaquely on
+   * the native side.
    */
   static fromJSON(source: string | PipelineRecipe): Pipeline {
-    const recipe: PipelineRecipe =
+    const recipe: unknown =
       typeof source === "string" ? JSON.parse(source) : source;
-    if (recipe == null || !Array.isArray(recipe.ops)) {
+    if (recipe == null || typeof recipe !== "object") {
+      throw new Error("Pipeline.fromJSON: invalid recipe (expected an object)");
+    }
+    const { version, ops, input, output } = recipe as Partial<PipelineRecipe>;
+    if (version !== 1) {
+      throw new Error(
+        `Pipeline.fromJSON: unsupported recipe version ${String(version)} (expected 1)`,
+      );
+    }
+    if (!Array.isArray(ops)) {
       throw new Error(
         "Pipeline.fromJSON: invalid recipe (expected an 'ops' array)",
       );
     }
     const next = new Pipeline();
-    if (recipe.input) next._input = { ...recipe.input };
-    if (recipe.output) next._output = { ...recipe.output };
-    for (const op of recipe.ops) next.enqueue({ ...op });
+    if (input) next._input = { ...input };
+    if (output) next._output = { ...output };
+    ops.forEach((op, index) => {
+      const type = (op as { type?: unknown } | null)?.type;
+      if (typeof type !== "string") {
+        throw new Error(
+          `Pipeline.fromJSON: invalid op at index ${index} (expected a '{ type }' object)`,
+        );
+      }
+      if (!OP_BUILDERS.has(type)) {
+        throw new Error(
+          `Pipeline.fromJSON: unknown op '${type}' at index ${index}`,
+        );
+      }
+      next.enqueue({ ...op });
+    });
     return next;
   }
 
