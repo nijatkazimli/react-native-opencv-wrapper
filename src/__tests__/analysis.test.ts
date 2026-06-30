@@ -265,6 +265,149 @@ describe("Data-returning analysis ops", () => {
     ]);
   });
 
+  it("dominantColors defaults and explicit options round-trip", async () => {
+    await pipeline().input("/abs/photo.png").dominantColors();
+    await pipeline()
+      .input("/abs/photo.png")
+      .dominantColors({ k: 3, attempts: 1, iterations: 5 });
+
+    expect(dataCall(0).ops).toEqual([
+      { type: "dominantColors", k: 5, attempts: 3, iterations: 10 },
+    ]);
+    expect(dataCall(1).ops).toEqual([
+      { type: "dominantColors", k: 3, attempts: 1, iterations: 5 },
+    ]);
+  });
+
+  it("dominantColors resolves with the parsed palette result", async () => {
+    native.runPipelineData.mockResolvedValueOnce(
+      JSON.stringify({
+        colors: [
+          {
+            color: { r: 12, g: 34, b: 56 },
+            hex: "#0C2238",
+            population: 600,
+            fraction: 0.6,
+          },
+          {
+            color: { r: 200, g: 100, b: 50 },
+            hex: "#C86432",
+            population: 400,
+            fraction: 0.4,
+          },
+        ],
+        count: 2,
+        width: 40,
+        height: 25,
+      }),
+    );
+
+    const result = await pipeline()
+      .input("/abs/photo.png")
+      .dominantColors({ k: 2 });
+
+    expect(result).toEqual({
+      colors: [
+        {
+          color: { r: 12, g: 34, b: 56 },
+          hex: "#0C2238",
+          population: 600,
+          fraction: 0.6,
+        },
+        {
+          color: { r: 200, g: 100, b: 50 },
+          hex: "#C86432",
+          population: 400,
+          fraction: 0.4,
+        },
+      ],
+      count: 2,
+      width: 40,
+      height: 25,
+    });
+    expect(native.runPipelineData).toHaveBeenCalledTimes(1);
+    expect(native.runPipelineIO).not.toHaveBeenCalled();
+  });
+
+  it("goodFeaturesToTrack defaults and explicit options round-trip", async () => {
+    await pipeline().input("/abs/scene.png").goodFeaturesToTrack();
+    await pipeline().input("/abs/scene.png").goodFeaturesToTrack({
+      maxCorners: 50,
+      qualityLevel: 0.05,
+      minDistance: 15,
+      blockSize: 5,
+      useHarrisDetector: true,
+      k: 0.06,
+    });
+
+    expect(dataCall(0).ops).toEqual([
+      {
+        type: "goodFeaturesToTrack",
+        maxCorners: 100,
+        qualityLevel: 0.01,
+        minDistance: 10,
+        blockSize: 3,
+        useHarrisDetector: false,
+        k: 0.04,
+      },
+    ]);
+    expect(dataCall(1).ops).toEqual([
+      {
+        type: "goodFeaturesToTrack",
+        maxCorners: 50,
+        qualityLevel: 0.05,
+        minDistance: 15,
+        blockSize: 5,
+        useHarrisDetector: true,
+        k: 0.06,
+      },
+    ]);
+  });
+
+  it("goodFeaturesToTrack resolves with the parsed corner result", async () => {
+    native.runPipelineData.mockResolvedValueOnce(
+      JSON.stringify({
+        found: true,
+        count: 2,
+        corners: [
+          { x: 10, y: 20 },
+          { x: 30, y: 40 },
+        ],
+        width: 64,
+        height: 48,
+      }),
+    );
+
+    const result = await pipeline()
+      .input("/abs/scene.png")
+      .gray()
+      .goodFeaturesToTrack();
+
+    expect(result).toEqual({
+      found: true,
+      count: 2,
+      corners: [
+        { x: 10, y: 20 },
+        { x: 30, y: 40 },
+      ],
+      width: 64,
+      height: 48,
+    });
+    expect(dataCall().ops).toEqual([
+      { type: "gray" },
+      {
+        type: "goodFeaturesToTrack",
+        maxCorners: 100,
+        qualityLevel: 0.01,
+        minDistance: 10,
+        blockSize: 3,
+        useHarrisDetector: false,
+        k: 0.04,
+      },
+    ]);
+    expect(native.runPipelineIO).not.toHaveBeenCalled();
+  });
+
   it("boundingRect/minAreaRect default to the largest contour and accept points", async () => {
     await pipeline().input("/abs/shape.png").boundingRect();
     await pipeline().input("/abs/shape.png").minAreaRect();

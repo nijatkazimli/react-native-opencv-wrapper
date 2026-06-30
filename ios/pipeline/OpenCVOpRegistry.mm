@@ -57,6 +57,45 @@ Mat OpenCVEnsureGray(const Mat &src) {
     return gray;
 }
 
+BOOL OpenCVRunKmeansBgr(const Mat &current, NSDictionary *params,
+                        int defaultK, NSString *opName,
+                        OpenCVKmeansResult *out, NSError **error) {
+    int k = params[@"k"] ? [params[@"k"] intValue] : defaultK;
+    if (k < 1) {
+        if (error) *error = OpenCVMakeError([NSString stringWithFormat:@"%@ 'k' must be >= 1", opName]);
+        return NO;
+    }
+    int attempts = params[@"attempts"] ? [params[@"attempts"] intValue] : 3;
+    if (attempts < 1) { attempts = 1; }
+    int iterations = params[@"iterations"] ? [params[@"iterations"] intValue] : 10;
+    if (iterations < 1) { iterations = 1; }
+
+    Mat img;
+    if (current.channels() == 1) {
+        cv::cvtColor(current, img, cv::COLOR_GRAY2BGR);
+    } else {
+        img = current;
+    }
+
+    int sampleCount = img.rows * img.cols;
+    if (k > sampleCount) { k = sampleCount; }
+
+    Mat data;
+    img.convertTo(data, CV_32F);
+    data = data.reshape(1, sampleCount);  // sampleCount x 3
+
+    Mat labels, centers;
+    cv::TermCriteria crit(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER,
+                          iterations, 1.0);
+    cv::kmeans(data, k, labels, crit, attempts, cv::KMEANS_PP_CENTERS, centers);
+
+    out->labels = labels;
+    out->centers = centers;
+    out->k = k;
+    out->sampleCount = sampleCount;
+    return YES;
+}
+
 BOOL OpenCVOddPositive(int k) {
     return k >= 1 && k % 2 == 1;
 }

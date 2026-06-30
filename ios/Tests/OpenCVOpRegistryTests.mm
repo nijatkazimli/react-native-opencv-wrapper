@@ -1412,6 +1412,110 @@ static NSString *const kQRFixtureValue = @"https://opencv.org";
   XCTAssertGreaterThanOrEqual([parsed[@"count"] intValue], 1);
 }
 
+#pragma mark - Dominant colors (dominantColors)
+
+- (void)testDominantColorsReturnsPaletteByPopulation {
+  // Top half blue, bottom half red (BGR) — two clear dominant colors.
+  cv::Mat canvas(60, 40, CV_8UC3, cv::Scalar(0, 0, 255));
+  cv::rectangle(canvas, cv::Point(0, 0), cv::Point(40, 30), cv::Scalar(255, 0, 0), -1);
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"dom-in.png"];
+  XCTAssertTrue(cv::imwrite(path.UTF8String, canvas));
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", path];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"dominantColors\",\"k\":2,\"attempts\":3,\"iterations\":10}]"
+                             error:&error];
+  XCTAssertNil(error, @"dominantColors failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"count"], @2);
+  NSArray *colors = parsed[@"colors"];
+  XCTAssertEqual(colors.count, 2u);
+  XCTAssertGreaterThanOrEqual([colors[0][@"population"] intValue],
+                              [colors[1][@"population"] intValue]);
+  double sum = [colors[0][@"fraction"] doubleValue] + [colors[1][@"fraction"] doubleValue];
+  XCTAssertEqualWithAccuracy(sum, 1.0, 0.001);
+  NSString *hex = colors[0][@"hex"];
+  XCTAssertEqual(hex.length, 7u);
+  XCTAssertEqualObjects([hex substringToIndex:1], @"#");
+  BOOL hasRed = NO, hasBlue = NO;
+  for (NSDictionary *c in colors) {
+    int r = [c[@"color"][@"r"] intValue];
+    int g = [c[@"color"][@"g"] intValue];
+    int b = [c[@"color"][@"b"] intValue];
+    if (r > 200 && g < 60 && b < 60) { hasRed = YES; }
+    if (b > 200 && g < 60 && r < 60) { hasBlue = YES; }
+  }
+  XCTAssertTrue(hasRed && hasBlue, @"expected red and blue dominant colors");
+}
+
+- (void)testDominantColorsRejectsBadK {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"dominantColors\",\"k\":0}]"
+                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+}
+
+#pragma mark - Corner features (goodFeaturesToTrack)
+
+- (void)testGoodFeaturesToTrackFindsSquareCorners {
+  NSString *input = [self writeShapesImage:@"gftt-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"goodFeaturesToTrack\",\"maxCorners\":100,\"qualityLevel\":0.01,\"minDistance\":10,\"blockSize\":3,\"useHarrisDetector\":false,\"k\":0.04}]"
+                             error:&error];
+  XCTAssertNil(error, @"goodFeaturesToTrack failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertEqualObjects(parsed[@"found"], @YES);
+  XCTAssertGreaterThanOrEqual([parsed[@"count"] intValue], 4);
+  XCTAssertEqualObjects(parsed[@"width"], @320);
+  XCTAssertEqualObjects(parsed[@"height"], @240);
+  NSDictionary *first = parsed[@"corners"][0];
+  XCTAssertNotNil(first[@"x"]);
+  XCTAssertNotNil(first[@"y"]);
+}
+
+- (void)testGoodFeaturesToTrackHarrisDetectorFindsCorners {
+  NSString *input = [self writeShapesImage:@"gftt-harris-in.png"];
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"path\",\"value\":\"%@\"}", input];
+
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"goodFeaturesToTrack\",\"useHarrisDetector\":true}]"
+                             error:&error];
+  XCTAssertNil(error, @"goodFeaturesToTrack(harris) failed: %@", error);
+
+  NSDictionary *parsed = [self parseDataResult:result];
+  XCTAssertGreaterThanOrEqual([parsed[@"count"] intValue], 1);
+}
+
+- (void)testGoodFeaturesToTrackRejectsBadQuality {
+  NSString *inputJson =
+      [NSString stringWithFormat:@"{\"kind\":\"base64\",\"value\":\"%@\"}", [self sourceBase64:@".png"]];
+  NSError *error = nil;
+  NSString *result = [OpenCVOpRegistry
+      runPipelineDataWithInputJson:inputJson
+                           opsJson:@"[{\"type\":\"goodFeaturesToTrack\",\"qualityLevel\":0}]"
+                             error:&error];
+  XCTAssertNil(result);
+  XCTAssertNotNil(error);
+}
+
 - (void)testBoundingRectAndMinAreaRectUseLargestContour {
   NSString *input = [self writeShapesImage:@"br-in.png"];
   NSString *inputJson =

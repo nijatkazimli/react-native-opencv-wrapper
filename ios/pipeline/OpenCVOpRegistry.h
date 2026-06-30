@@ -109,6 +109,21 @@ NSString *OpenCVOptionalString(NSDictionary *params, NSString *key);
 /// Return a single-channel copy of `src` (no-op if already grayscale).
 cv::Mat OpenCVEnsureGray(const cv::Mat &src);
 
+/// Per-pixel labels and cluster centers from a k-means run.
+struct OpenCVKmeansResult {
+  cv::Mat labels;   // sampleCount x 1, CV_32S
+  cv::Mat centers;  // k x 3, CV_32F (BGR)
+  int k;            // effective cluster count (clamped to sampleCount)
+  int sampleCount;  // rows * cols
+};
+
+/// Run k-means over `current`'s pixels in BGR space, reading `k` (default
+/// `defaultK`), `attempts` and `iterations` from `params`. Returns NO and sets
+/// `*error` when `k < 1`; otherwise fills `*out`.
+BOOL OpenCVRunKmeansBgr(const cv::Mat &current, NSDictionary *params,
+                        int defaultK, NSString *opName,
+                        OpenCVKmeansResult *out, NSError **error);
+
 /// True when `k` is a positive odd integer (valid kernel size).
 BOOL OpenCVOddPositive(int k);
 

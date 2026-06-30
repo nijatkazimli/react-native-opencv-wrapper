@@ -621,6 +621,94 @@ export default function App() {
     }
   }, []);
 
+  const runDominantColorsDemo = useCallback(async () => {
+    try {
+      const palette = await pipeline()
+        .inputBase64(SAMPLE_LENNA_PHOTO_BASE64)
+        .dominantColors({ k: 5 });
+      // Visualize: paint a swatch strip of the palette across the bottom.
+      const swatchH = Math.max(8, Math.round(palette.height / 6));
+      const swatchW = Math.round(palette.width / palette.colors.length);
+      let annotated = pipeline()
+        .inputBase64(SAMPLE_LENNA_PHOTO_BASE64)
+        .outputBase64("png");
+      palette.colors.forEach((c, i) => {
+        const last = i === palette.colors.length - 1;
+        annotated = annotated.drawRect(
+          i * swatchW,
+          palette.height - swatchH,
+          last ? palette.width - i * swatchW : swatchW,
+          swatchH,
+          {
+            color: [255, 255, 255],
+            thickness: 1,
+            fillColor: [c.color.r, c.color.g, c.color.b],
+          },
+        );
+      });
+      const outBase64 = await annotated.run();
+      const note = palette.colors
+        .map((c) => `${c.hex} ${(c.fraction * 100).toFixed(0)}%`)
+        .join("  ");
+      setResults((r) => [
+        {
+          id: `palette-${Date.now()}`,
+          label: "Dominant Colors",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`,
+          captions: { left: "original", right: "palette" },
+          note,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Dominant Colors: ${(e as Error).message}`);
+    }
+  }, []);
+
+  const runCornersDemo = useCallback(async () => {
+    try {
+      const feats = await pipeline()
+        .inputBase64(SAMPLE_LENNA_PHOTO_BASE64)
+        .gray()
+        .goodFeaturesToTrack({
+          maxCorners: 80,
+          qualityLevel: 0.01,
+          minDistance: 8,
+        });
+      // Visualize: dot every detected corner on the original photo.
+      const thickness = Math.max(
+        2,
+        Math.round(Math.max(feats.width, feats.height) / 200),
+      );
+      let annotated = pipeline()
+        .inputBase64(SAMPLE_LENNA_PHOTO_BASE64)
+        .outputBase64("png");
+      for (const { x, y } of feats.corners) {
+        annotated = annotated.drawCircle(
+          Math.round(x),
+          Math.round(y),
+          thickness * 2,
+          { color: [57, 255, 20], thickness, fillColor: [57, 255, 20] },
+        );
+      }
+      const outBase64 = await annotated.run();
+      setResults((r) => [
+        {
+          id: `corners-${Date.now()}`,
+          label: "Corners",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`,
+          captions: { left: "original", right: "corners" },
+          note: `found ${feats.count} corners (Shi-Tomasi)`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Corners: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -645,6 +733,8 @@ export default function App() {
         <Button label="Detect Document" onPress={runDetectDocumentDemo} />
         <Button label="Find Shapes" onPress={runFindShapesDemo} />
         <Button label="Measure" onPress={runMeasureDemo} />
+        <Button label="Dominant Colors" onPress={runDominantColorsDemo} />
+        <Button label="Corners" onPress={runCornersDemo} />
       </View>
 
       <Text style={styles.sectionTitle}>Lenna (photo) demos</Text>
