@@ -34,6 +34,23 @@ export type OutputSink =
   | { kind: "base64"; ext: string };
 
 /**
+ * A portable, JSON-serializable snapshot of a pipeline: its ordered transform
+ * ops plus any captured input/output. Produced by {@link Pipeline.toJSON} and
+ * restored by {@link Pipeline.fromJSON}. A {@link PipelineRecipe} that carries
+ * only `ops` (no `input`/`output`) is a reusable, source-agnostic preset.
+ */
+export interface PipelineRecipe {
+  /** Schema version, for forward compatibility. */
+  version: 1;
+  /** The ordered transform steps. */
+  ops: SerializedOp[];
+  /** Captured source, present only when serialized from a pipeline that set one. */
+  input?: InputSource;
+  /** Captured sink, present only when serialized from a pipeline that set one. */
+  output?: OutputSink;
+}
+
+/**
  * Operation argument map extended by each op module via declaration merging.
  *
  * Example in an op file:
@@ -137,6 +154,55 @@ export class Pipeline<
    */
   serializedOps(): SerializedOp[] {
     return this.ops.map((op) => ({ ...op }));
+  }
+
+  /**
+   * Append every transform op from a recipe or preset to this pipeline (its
+   * `input`/`output`, if any, are ignored). Returns `this` for chaining, so a
+   * shared preset can be dropped into the middle of a chain.
+   *
+   * @example
+   * pipeline().input(src).outputBase64().apply(presets.edges).run();
+   */
+  apply(recipe: PipelineRecipe | readonly SerializedOp[]): this {
+    const ops = "ops" in recipe ? recipe.ops : recipe;
+    for (const op of ops) this.ops.push({ ...op });
+    return this;
+  }
+
+  /**
+   * Serialize this pipeline to a portable {@link PipelineRecipe}. Invoked
+   * automatically by `JSON.stringify(pipeline)`. The captured `input`/`output`
+   * are included only when set, so a pipeline with neither yields a reusable
+   * preset that can be applied to any source.
+   */
+  toJSON(): PipelineRecipe {
+    const recipe: PipelineRecipe = { version: 1, ops: this.serializedOps() };
+    if (this._input) recipe.input = { ...this._input };
+    if (this._output) recipe.output = { ...this._output };
+    return recipe;
+  }
+
+  /**
+   * Rebuild a pipeline from a {@link PipelineRecipe} or its JSON string,
+   * restoring the queued ops and any captured input/output. The result is
+   * untyped with respect to input/output state, so call
+   * {@link Pipeline.input}/{@link Pipeline.output} (or their base64 variants)
+   * before {@link Pipeline.run} to satisfy the type-state checks.
+   */
+  static fromJSON(source: string | PipelineRecipe): Pipeline {
+    const recipe: PipelineRecipe =
+      typeof source === "string" ? JSON.parse(source) : source;
+    if (recipe == null || !Array.isArray(recipe.ops)) {
+      throw new Error(
+        "Pipeline.fromJSON: invalid recipe (expected an 'ops' array)",
+      );
+    }
+    const next = new Pipeline();
+    if (recipe.input) next._input = { ...recipe.input };
+    if (recipe.output) next._output = { ...recipe.output };
+    for (const op of recipe.ops) next.enqueue({ ...op });
+    return next;
   }
 
   /**

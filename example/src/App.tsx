@@ -12,6 +12,7 @@ import RNFS from "react-native-fs";
 import {
   getOpenCVVersion,
   pipeline,
+  presets,
   type ReadyPipeline,
 } from "@nijatk/react-native-opencv-wrapper";
 import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
@@ -709,6 +710,32 @@ export default function App() {
     }
   }, []);
 
+  const runPresetDemo = useCallback(async () => {
+    try {
+      // Apply the shared `edges` preset (gray -> blur -> Canny) to the photo,
+      // then round-trip it through JSON to prove the recipe is serializable.
+      const recipe = JSON.parse(JSON.stringify(presets.edges));
+      const outBase64 = await pipeline()
+        .inputBase64(SAMPLE_LENNA_PHOTO_BASE64)
+        .outputBase64("png")
+        .apply(recipe)
+        .run();
+      setResults((r) => [
+        {
+          id: `preset-${Date.now()}`,
+          label: "Preset: Edges",
+          uri: `data:image/png;base64,${outBase64}`,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`,
+          captions: { left: "original", right: "edges preset" },
+          note: `presets.edges \u00b7 ${recipe.ops.length} ops`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Preset: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -735,6 +762,7 @@ export default function App() {
         <Button label="Measure" onPress={runMeasureDemo} />
         <Button label="Dominant Colors" onPress={runDominantColorsDemo} />
         <Button label="Corners" onPress={runCornersDemo} />
+        <Button label="Preset: Edges" onPress={runPresetDemo} />
       </View>
 
       <Text style={styles.sectionTitle}>Lenna (photo) demos</Text>

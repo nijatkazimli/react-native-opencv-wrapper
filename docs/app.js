@@ -16,6 +16,7 @@
   const GUIDE_LINKS = [
     { id: "getting-started", label: "Getting started" },
     { id: "usage", label: "Usage patterns" },
+    { id: "recipes", label: "Recipes & presets" },
     { id: "io-model", label: "Input & output" },
     { id: "errors", label: "Error handling" },
     { id: "operations", label: "Operations" },

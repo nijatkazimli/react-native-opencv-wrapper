@@ -62,6 +62,43 @@ async call resolves with the output, or rejects with a stable error `code`. See
 the [documentation](https://nijatkazimli.github.io/react-native-opencv-wrapper/)
 for the full API.
 
+## Recipes & presets
+
+A pipeline's steps are serializable data. Turn any pipeline into a portable,
+source-agnostic **recipe**, then store it, send it over the network, or rebuild
+it later:
+
+```ts
+import {
+  pipeline,
+  Pipeline,
+  presets,
+} from "@nijatk/react-native-opencv-wrapper";
+
+// Apply a built-in preset (edges, crispScan, softenPortrait)
+await pipeline()
+  .input("/abs/in.jpg")
+  .output("/abs/out.png")
+  .apply(presets.edges)
+  .run();
+
+// Define your own reusable recipe (no input/output — works on any image)
+const punch = pipeline()
+  .clahe(2, 8)
+  .convertScaleAbs(1.1, 10)
+  .gaussianBlur(3)
+  .toJSON();
+
+// Persist and reload it
+const json = JSON.stringify(punch);
+await Pipeline.fromJSON(json).input("/abs/in.jpg").output("/abs/out.jpg").run();
+```
+
+`toJSON()` (also used by `JSON.stringify`) snapshots the ops; `apply()` splices a
+recipe into any chain; `Pipeline.fromJSON()` rebuilds a runnable pipeline. See
+the [Recipes & presets](https://nijatkazimli.github.io/react-native-opencv-wrapper/#recipes)
+docs for details.
+
 ## OpenCV integration
 
 OpenCV ships **bundled** by default (Android `4.11.0` via Maven Central; iOS via
