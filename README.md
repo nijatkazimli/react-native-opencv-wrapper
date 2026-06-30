@@ -99,6 +99,32 @@ recipe into any chain; `Pipeline.fromJSON()` rebuilds a runnable pipeline. See
 the [Recipes & presets](https://nijatkazimli.github.io/react-native-opencv-wrapper/#recipes)
 docs for details.
 
+## Batch processing
+
+Apply one recipe across many images in a single call with `runBatch`. Results
+come back in input order and mirror `Promise.allSettled`, so one bad file never
+fails the whole run:
+
+```ts
+import { runBatch, presets } from "@nijatk/react-native-opencv-wrapper";
+
+const results = await runBatch(
+  presets.edges,
+  [
+    { input: "/abs/a.jpg", output: "/abs/a.png" },
+    { input: "/abs/b.jpg", output: "/abs/b.png" },
+  ],
+  { concurrency: 4 }, // optional: cap images in flight (defaults to all)
+);
+
+const failed = results.filter((r) => r.status === "rejected");
+```
+
+Inputs and outputs accept absolute paths or `{ base64 }` descriptors, so a
+batch can run entirely in memory. See the
+[Batch processing](https://nijatkazimli.github.io/react-native-opencv-wrapper/#batch)
+docs for details.
+
 ## OpenCV integration
 
 OpenCV ships **bundled** by default (Android `4.11.0` via Maven Central; iOS via

@@ -13,6 +13,7 @@ import {
   getOpenCVVersion,
   pipeline,
   presets,
+  runBatch,
   type ReadyPipeline,
 } from "@nijatk/react-native-opencv-wrapper";
 import { SAMPLE_QR_PNG_BASE64 } from "./qrSample";
@@ -736,6 +737,49 @@ export default function App() {
     }
   }, []);
 
+  const runBatchDemo = useCallback(async () => {
+    try {
+      // Apply one preset across several images in a single call. Here we reuse
+      // the same source three times with different presets-as-recipes to show
+      // batch processing; in a real app these would be different files.
+      const recipes = [
+        presets.edges,
+        presets.crispScan,
+        presets.softenPortrait,
+      ];
+      const labels = ["edges", "crispScan", "softenPortrait"];
+      const settled = await Promise.all(
+        recipes.map((recipe) =>
+          runBatch(recipe, [
+            {
+              input: { base64: SAMPLE_LENNA_PHOTO_BASE64 },
+              output: { base64: "png" },
+            },
+          ]),
+        ),
+      );
+      const ok = settled.filter((r) => r[0]?.status === "fulfilled").length;
+      const first = settled[0]?.[0];
+      const preview =
+        first?.status === "fulfilled"
+          ? `data:image/png;base64,${first.output}`
+          : `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`;
+      setResults((r) => [
+        {
+          id: `batch-${Date.now()}`,
+          label: "Batch: Presets",
+          uri: preview,
+          compareUri: `data:image/jpeg;base64,${SAMPLE_LENNA_PHOTO_BASE64}`,
+          captions: { left: "original", right: labels[0] },
+          note: `runBatch \u00b7 ${ok}/${recipes.length} ok`,
+        },
+        ...r,
+      ]);
+    } catch (e) {
+      setError(`Batch: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>react-native-opencv-wrapper</Text>
@@ -763,6 +807,7 @@ export default function App() {
         <Button label="Dominant Colors" onPress={runDominantColorsDemo} />
         <Button label="Corners" onPress={runCornersDemo} />
         <Button label="Preset: Edges" onPress={runPresetDemo} />
+        <Button label="Batch: Presets" onPress={runBatchDemo} />
       </View>
 
       <Text style={styles.sectionTitle}>Lenna (photo) demos</Text>

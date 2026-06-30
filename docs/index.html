@@ -240,9 +240,7 @@ await base.clone().output("/blurred.jpg").gaussianBlur(7).run();</code></pre>
             <strong>source-agnostic</strong>: they describe <em>what</em> to do,
             not which image to do it to.
           </p>
-          <pre
-            class="code"
-          ><code>type PipelineRecipe = {
+          <pre class="code"><code>type PipelineRecipe = {
   version: 1;
   ops: { type: string; [param: string]: unknown }[];
   input?: InputSource;   // present only if the pipeline captured one
@@ -285,9 +283,7 @@ await Pipeline.fromJSON(json)        // string or PipelineRecipe
             chain (its captured input/output are ignored), returning the
             pipeline for further chaining. Pass a recipe or a bare ops array.
           </p>
-          <pre
-            class="code"
-          ><code>await pipeline()
+          <pre class="code"><code>await pipeline()
   .input("/abs/in.jpg")
   .output("/abs/out.png")
   .resize(640, 480)
@@ -298,8 +294,8 @@ await Pipeline.fromJSON(json)        // string or PipelineRecipe
           <h3>Built-in presets</h3>
           <p>
             <code>presets</code> ships a few ready-made recipes. Each is built
-            from the typed op builders, so it can never drift from an
-            op&rsquo;s parameter schema.
+            from the typed op builders, so it can never drift from an op&rsquo;s
+            parameter schema.
           </p>
           <div class="table-wrap">
             <table class="errors-table">
@@ -313,7 +309,11 @@ await Pipeline.fromJSON(json)        // string or PipelineRecipe
               <tbody>
                 <tr>
                   <td><code>presets.edges</code></td>
-                  <td><code>gray &rarr; gaussianBlur(5) &rarr; canny(50,150)</code></td>
+                  <td>
+                    <code
+                      >gray &rarr; gaussianBlur(5) &rarr; canny(50,150)</code
+                    >
+                  </td>
                   <td>Grayscale edge map</td>
                 </tr>
                 <tr>
@@ -323,7 +323,9 @@ await Pipeline.fromJSON(json)        // string or PipelineRecipe
                 </tr>
                 <tr>
                   <td><code>presets.softenPortrait</code></td>
-                  <td><code>bilateralFilter(9,75,75) &rarr; clahe(2,8)</code></td>
+                  <td>
+                    <code>bilateralFilter(9,75,75) &rarr; clahe(2,8)</code>
+                  </td>
                   <td>Gentle portrait cleanup</td>
                 </tr>
               </tbody>
@@ -372,6 +374,61 @@ await Pipeline.fromJSON(saved).input(src).output(dst).run();</code></pre>
             recipe is safe to reuse across many inputs and to send between a
             server and the app.
           </p>
+        </section>
+
+        <!-- Batch processing -->
+        <section id="batch" class="guide-section" data-guide>
+          <h2>Batch processing</h2>
+          <p>
+            <code>runBatch()</code> applies one recipe (or preset) across many
+            images in a single call &mdash; each item runs the same steps with
+            its own input and output. It is the natural companion to recipes:
+            define the steps once, then process a whole folder.
+          </p>
+          <pre
+            class="code"
+          ><code>import { runBatch, presets } from "@nijatk/react-native-opencv-wrapper";
+
+const results = await runBatch(presets.edges, [
+  { input: "/abs/a.jpg", output: "/abs/a.png" },
+  { input: "/abs/b.jpg", output: "/abs/b.png" },
+  { input: "/abs/c.jpg", output: "/abs/c.png" },
+]);</code></pre>
+
+          <h3>Per-item results &mdash; nothing fails the batch</h3>
+          <p>
+            Results come back <strong>in input order</strong> and mirror
+            <code>Promise.allSettled</code>: one unreadable file never rejects
+            the whole run, so you can report successes and failures
+            individually.
+          </p>
+          <pre
+            class="code"
+          ><code>for (const r of results) {
+  if (r.status === "fulfilled") console.log(r.index, "&rarr;", r.output);
+  else console.warn(r.index, "failed:", r.error.message);
+}
+
+const failed = results.filter((r) => r.status === "rejected");</code></pre>
+
+          <h3>Sources, sinks &amp; concurrency</h3>
+          <p>
+            Each item&rsquo;s <code>input</code>/<code>output</code> is an
+            absolute path (string) or a base64 descriptor, so batches can run
+            fully in memory. Cap parallelism with <code>concurrency</code> to
+            bound peak memory when processing many large images (it defaults to
+            all items at once).
+          </p>
+          <pre
+            class="code"
+          ><code>await runBatch(
+  recipe,
+  [
+    { input: { base64: picker.a }, output: { base64: "jpg" } },
+    { input: { base64: picker.b }, output: { base64: "jpg" } },
+  ],
+  { concurrency: 4 }, // at most 4 images in flight at a time
+);</code></pre>
         </section>
 
         <!-- I/O model -->

@@ -15,4 +15,13 @@ export type {
 export { presets } from "./presets";
 export type { PresetName } from "./presets";
 
+export { runBatch } from "./batch";
+export type {
+  BatchSource,
+  BatchSink,
+  BatchItem,
+  BatchOptions,
+  BatchResult,
+} from "./batch";
+
 export * from "./standalone";
