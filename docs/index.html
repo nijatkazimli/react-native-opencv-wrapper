@@ -411,9 +411,7 @@ const results = await runBatch(presets.edges, [
             the whole run, so you can report successes and failures
             individually.
           </p>
-          <pre
-            class="code"
-          ><code>for (const r of results) {
+          <pre class="code"><code>for (const r of results) {
   if (r.status === "fulfilled") console.log(r.index, "&rarr;", r.output);
   else console.warn(r.index, "failed:", r.error.message);
 }
@@ -428,9 +426,7 @@ const failed = results.filter((r) => r.status === "rejected");</code></pre>
             bound peak memory when processing many large images (it defaults to
             all items at once).
           </p>
-          <pre
-            class="code"
-          ><code>await runBatch(
+          <pre class="code"><code>await runBatch(
   recipe,
   [
     { input: { base64: picker.a }, output: { base64: "jpg" } },
