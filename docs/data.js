@@ -8,7 +8,7 @@
 window.OPENCV_DOCS = {
   meta: {
     name: "@nijatk/react-native-opencv-wrapper",
-    version: "1.5.0",
+    version: "1.6.0",
     opencv:
       "Bundled by default (Android 4.11.0, iOS ~4.3); version and host/bundled mode are configurable on both platforms",
     repo: "nijatkazimli/react-native-opencv-wrapper",
@@ -1797,6 +1797,63 @@ window.OPENCV_DOCS = {
         "Requires OpenCV ≥ 4.3.0; rejects with opencv_unavailable if too old.",
     },
     {
+      id: "goodFeaturesToTrack",
+      name: "Good Features To Track",
+      category: "feature-detection",
+      kind: "data",
+      method:
+        "goodFeaturesToTrack(options?: { maxCorners?: number; qualityLevel?: number; minDistance?: number; blockSize?: number; useHarrisDetector?: boolean; k?: number }): Promise<GoodFeaturesToTrackResult>",
+      standalone: null,
+      desc: "Detect corner feature points (Shi-Tomasi by default, or Harris when useHarrisDetector is set) and return them as a point list, strongest first. Operates on a grayscale view of the image.",
+      params: [
+        {
+          name: "options.maxCorners",
+          type: "number",
+          req: false,
+          def: "100",
+          desc: "Maximum number of corners to return (strongest first).",
+        },
+        {
+          name: "options.qualityLevel",
+          type: "number",
+          req: false,
+          def: "0.01",
+          desc: "Minimal corner quality as a fraction of the best corner's measure (0–1).",
+        },
+        {
+          name: "options.minDistance",
+          type: "number",
+          req: false,
+          def: "10",
+          desc: "Minimum Euclidean distance between returned corners (px).",
+        },
+        {
+          name: "options.blockSize",
+          type: "number",
+          req: false,
+          def: "3",
+          desc: "Neighborhood size for the corner measure.",
+        },
+        {
+          name: "options.useHarrisDetector",
+          type: "boolean",
+          req: false,
+          def: "false",
+          desc: "Use the Harris detector instead of Shi-Tomasi.",
+        },
+        {
+          name: "options.k",
+          type: "number",
+          req: false,
+          def: "0.04",
+          desc: "Harris free parameter (only used when useHarrisDetector).",
+        },
+      ],
+      returns:
+        "{\n  found: boolean,\n  count: number,\n  corners: Array<{ x: number, y: number }>,\n  width: number,\n  height: number\n}",
+      notes: "Grayscales internally.",
+    },
+    {
       id: "houghCircles",
       name: "Hough Circle Detection",
       category: "feature-detection",
@@ -1980,6 +2037,43 @@ window.OPENCV_DOCS = {
       ],
       notes:
         "Otsu-binarizes internally; raw distances when normalize is false.",
+    },
+    {
+      id: "dominantColors",
+      name: "Dominant Colors",
+      category: "analysis-measurement",
+      kind: "data",
+      method:
+        "dominantColors(options?: { k?: number; attempts?: number; iterations?: number }): Promise<DominantColorsResult>",
+      standalone: null,
+      desc: "Extract the k dominant colors with k-means; returns each color as RGB + hex with its pixel population and image fraction, ordered most-dominant first. Unlike kmeans() (which posterizes the image), this returns the palette as data.",
+      params: [
+        {
+          name: "options.k",
+          type: "number",
+          req: false,
+          def: "5",
+          desc: "Number of dominant colors to extract (≥ 1).",
+        },
+        {
+          name: "options.attempts",
+          type: "number",
+          req: false,
+          def: "3",
+          desc: "k-means re-run count; the best result is kept.",
+        },
+        {
+          name: "options.iterations",
+          type: "number",
+          req: false,
+          def: "10",
+          desc: "Maximum k-means iterations per attempt.",
+        },
+      ],
+      returns:
+        "{\n  colors: Array<{ color: { r, g, b }, hex: string, population: number, fraction: number }>,\n  count: number,\n  width: number,\n  height: number\n}",
+      notes:
+        "Uses k-means internally, so results can vary slightly between runs.",
     },
     {
       id: "meanStdDev",

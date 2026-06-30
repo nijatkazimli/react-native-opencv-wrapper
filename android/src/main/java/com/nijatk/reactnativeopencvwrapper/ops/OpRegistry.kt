@@ -70,6 +70,7 @@ object OpRegistry {
     ConnectedComponentsOp,
     HoughLinesOp,
     HoughCirclesOp,
+    GoodFeaturesToTrackOp,
     BoundingRectOp,
     MinAreaRectOp,
     ApproxPolyDPOp,
@@ -83,6 +84,7 @@ object OpRegistry {
     CountNonZeroOp,
     CalcHistOp,
     MatchTemplateOp,
+    DominantColorsOp,
   ).associateBy { it.name }
 
   /** Run all serialized ops in `opsJson`, reading once and writing once. */

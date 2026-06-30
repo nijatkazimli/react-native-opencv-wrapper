@@ -1288,6 +1288,98 @@ class OpRegistryInstrumentedTest {
     assertTrue(parsed.getInt("count") >= 1)
   }
 
+  // --- dominantColors --------------------------------------------------------
+
+  @Test
+  fun dominantColorsReturnsPaletteByPopulation() {
+    // Top half blue, bottom half red (BGR) — two clear dominant colors.
+    val canvas = Mat(60, 40, CvType.CV_8UC3, Scalar(0.0, 0.0, 255.0))
+    Imgproc.rectangle(canvas, Point(0.0, 0.0), Point(40.0, 30.0), Scalar(255.0, 0.0, 0.0), -1)
+    val file = File(cacheDir, "dom-in.png")
+    assertTrue(Imgcodecs.imwrite(file.absolutePath, canvas))
+    canvas.release()
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"${file.absolutePath}"}""",
+      """[{"type":"dominantColors","k":2,"attempts":3,"iterations":10}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertEquals(2, parsed.getInt("count"))
+    val colors = parsed.getJSONArray("colors")
+    assertEquals(2, colors.length())
+    val first = colors.getJSONObject(0)
+    val second = colors.getJSONObject(1)
+    assertTrue("most-dominant first", first.getInt("population") >= second.getInt("population"))
+    assertEquals(1.0, first.getDouble("fraction") + second.getDouble("fraction"), 0.001)
+    val hex = first.getString("hex")
+    assertEquals(7, hex.length)
+    assertTrue(hex.startsWith("#"))
+    var hasRed = false
+    var hasBlue = false
+    for (i in 0 until colors.length()) {
+      val c = colors.getJSONObject(i).getJSONObject("color")
+      val r = c.getInt("r")
+      val g = c.getInt("g")
+      val b = c.getInt("b")
+      if (r > 200 && g < 60 && b < 60) hasRed = true
+      if (b > 200 && g < 60 && r < 60) hasBlue = true
+    }
+    assertTrue("palette has red and blue", hasRed && hasBlue)
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun dominantColorsRejectsBadK() {
+    val input = writeSourceImage("dom-bad.png")
+    OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"dominantColors","k":0}]""",
+    )
+  }
+
+  // --- goodFeaturesToTrack ---------------------------------------------------
+
+  @Test
+  fun goodFeaturesToTrackFindsSquareCorners() {
+    val input = writeShapesImage("gftt-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"goodFeaturesToTrack","maxCorners":100,"qualityLevel":0.01,"minDistance":10.0,"blockSize":3,"useHarrisDetector":false,"k":0.04}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue(parsed.getBoolean("found"))
+    assertTrue("at least the square's 4 corners", parsed.getInt("count") >= 4)
+    assertEquals(320, parsed.getInt("width"))
+    assertEquals(240, parsed.getInt("height"))
+    val first = parsed.getJSONArray("corners").getJSONObject(0)
+    assertTrue(first.has("x"))
+    assertTrue(first.has("y"))
+  }
+
+  @Test
+  fun goodFeaturesToTrackHarrisDetectorFindsCorners() {
+    val input = writeShapesImage("gftt-harris-in.png")
+
+    val result = OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"goodFeaturesToTrack","useHarrisDetector":true}]""",
+    )
+
+    val parsed = JSONObject(result)
+    assertTrue(parsed.getInt("count") >= 1)
+  }
+
+  @Test(expected = OpenCVInvalidArgumentException::class)
+  fun goodFeaturesToTrackRejectsBadQuality() {
+    val input = writeSourceImage("gftt-bad.png")
+    OpRegistry.executeData(
+      """{"kind":"path","value":"$input"}""",
+      """[{"type":"goodFeaturesToTrack","qualityLevel":0.0}]""",
+    )
+  }
+
   // --- boundingRect / minAreaRect / approxPolyDP ----------------------------
 
   @Test
