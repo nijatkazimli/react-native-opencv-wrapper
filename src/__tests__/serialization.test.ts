@@ -99,9 +99,37 @@ describe("Pipeline serialization", () => {
     expect(() => Pipeline.fromJSON(null as unknown as PipelineRecipe)).toThrow(
       "invalid recipe",
     );
+    expect(() => Pipeline.fromJSON("5")).toThrow("expected an object");
     expect(() =>
       Pipeline.fromJSON({ version: 1 } as unknown as PipelineRecipe),
     ).toThrow("invalid recipe");
+  });
+
+  it("fromJSON() rejects an unsupported recipe version", () => {
+    expect(() =>
+      Pipeline.fromJSON({ version: 2, ops: [] } as unknown as PipelineRecipe),
+    ).toThrow("unsupported recipe version 2");
+    expect(() =>
+      Pipeline.fromJSON({ ops: [] } as unknown as PipelineRecipe),
+    ).toThrow("unsupported recipe version undefined");
+  });
+
+  it("fromJSON() rejects a malformed op entry", () => {
+    expect(() =>
+      Pipeline.fromJSON({
+        version: 1,
+        ops: [null],
+      } as unknown as PipelineRecipe),
+    ).toThrow("invalid op at index 0");
+  });
+
+  it("fromJSON() rejects an unknown op type", () => {
+    expect(() =>
+      Pipeline.fromJSON({
+        version: 1,
+        ops: [{ type: "gray" }, { type: "nope" }],
+      } as unknown as PipelineRecipe),
+    ).toThrow("unknown op 'nope' at index 1");
   });
 });
 
