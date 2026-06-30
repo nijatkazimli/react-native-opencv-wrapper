@@ -229,6 +229,151 @@ await base.clone().output("/edges.jpg").canny(50, 150).run();
 await base.clone().output("/blurred.jpg").gaussianBlur(7).run();</code></pre>
         </section>
 
+        <!-- Recipes & presets -->
+        <section id="recipes" class="guide-section" data-guide>
+          <h2>Recipes &amp; presets</h2>
+          <p>
+            A pipeline&rsquo;s steps are plain, serializable data. Convert any
+            pipeline into a <strong>recipe</strong> &mdash; a JSON-friendly
+            <code>PipelineRecipe</code> object &mdash; then store it, ship it
+            over the network, or rebuild it later. Recipes are
+            <strong>source-agnostic</strong>: they describe <em>what</em> to do,
+            not which image to do it to.
+          </p>
+          <pre
+            class="code"
+          ><code>type PipelineRecipe = {
+  version: 1;
+  ops: { type: string; [param: string]: unknown }[];
+  input?: InputSource;   // present only if the pipeline captured one
+  output?: OutputSink;   // present only if the pipeline captured one
+};</code></pre>
+
+          <h3>Serialize &mdash; <code>toJSON()</code></h3>
+          <p>
+            <code>toJSON()</code> snapshots a pipeline&rsquo;s ops (plus its
+            input/output if set) into a recipe. It is also called automatically
+            by <code>JSON.stringify()</code>, so a pipeline persists with no
+            extra ceremony.
+          </p>
+          <pre
+            class="code"
+          ><code>const recipe = pipeline().gray().gaussianBlur(5).canny(50, 150).toJSON();
+// { version: 1, ops: [ { type: "gray" }, { type: "gaussianBlur", ... }, ... ] }
+
+const json = JSON.stringify(pipeline().gray().canny(50, 150)); // ready to store</code></pre>
+
+          <h3>Rebuild &mdash; <code>Pipeline.fromJSON()</code></h3>
+          <p>
+            <code>Pipeline.fromJSON()</code> turns a recipe (object
+            <em>or</em> JSON string) back into a runnable pipeline, restoring
+            any captured input/output. Supply whatever the recipe didn&rsquo;t
+            include before calling <code>.run()</code>.
+          </p>
+          <pre
+            class="code"
+          ><code>import { Pipeline } from "@nijatk/react-native-opencv-wrapper";
+
+await Pipeline.fromJSON(json)        // string or PipelineRecipe
+  .input("/abs/in.jpg")
+  .output("/abs/out.png")
+  .run();</code></pre>
+
+          <h3>Compose &mdash; <code>apply()</code></h3>
+          <p>
+            <code>apply()</code> drops a recipe&rsquo;s ops into any existing
+            chain (its captured input/output are ignored), returning the
+            pipeline for further chaining. Pass a recipe or a bare ops array.
+          </p>
+          <pre
+            class="code"
+          ><code>await pipeline()
+  .input("/abs/in.jpg")
+  .output("/abs/out.png")
+  .resize(640, 480)
+  .apply(recipe)        // splice the recipe's steps in here
+  .bitwiseNot()
+  .run();</code></pre>
+
+          <h3>Built-in presets</h3>
+          <p>
+            <code>presets</code> ships a few ready-made recipes. Each is built
+            from the typed op builders, so it can never drift from an
+            op&rsquo;s parameter schema.
+          </p>
+          <div class="table-wrap">
+            <table class="errors-table">
+              <thead>
+                <tr>
+                  <th>Preset</th>
+                  <th>Pipeline</th>
+                  <th>Use for</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>presets.edges</code></td>
+                  <td><code>gray &rarr; gaussianBlur(5) &rarr; canny(50,150)</code></td>
+                  <td>Grayscale edge map</td>
+                </tr>
+                <tr>
+                  <td><code>presets.crispScan</code></td>
+                  <td><code>gray &rarr; adaptiveThreshold(255,15,5)</code></td>
+                  <td>High-contrast document scan</td>
+                </tr>
+                <tr>
+                  <td><code>presets.softenPortrait</code></td>
+                  <td><code>bilateralFilter(9,75,75) &rarr; clahe(2,8)</code></td>
+                  <td>Gentle portrait cleanup</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <pre
+            class="code"
+          ><code>import { pipeline, presets } from "@nijatk/react-native-opencv-wrapper";
+
+await pipeline()
+  .inputBase64(picker.base64)
+  .outputBase64("png")
+  .apply(presets.edges)
+  .run();</code></pre>
+
+          <h3>Custom recipes</h3>
+          <p>
+            Build your own reusable recipe by chaining the ops you want on a
+            fresh <code>pipeline()</code> (no input/output) and calling
+            <code>toJSON()</code>. Keep it source-agnostic so it can be applied
+            to any image, shared between screens, or saved as a user-defined
+            filter.
+          </p>
+          <pre
+            class="code"
+          ><code>// Define once &mdash; a portable, reusable recipe.
+export const punch = pipeline()
+  .clahe(2, 8)              // local contrast
+  .convertScaleAbs(1.1, 10) // gain + brightness
+  .gaussianBlur(3)
+  .toJSON();
+
+// Apply it anywhere.
+await pipeline()
+  .input("/abs/photo.jpg")
+  .output("/abs/punch.jpg")
+  .apply(punch)
+  .run();
+
+// Or persist user-built filters and reload them later.
+await AsyncStorage.setItem("filter", JSON.stringify(punch));
+const saved = await AsyncStorage.getItem("filter");
+await Pipeline.fromJSON(saved).input(src).output(dst).run();</code></pre>
+          <p class="muted">
+            A recipe is just data &mdash; it carries no image, so the same
+            recipe is safe to reuse across many inputs and to send between a
+            server and the app.
+          </p>
+        </section>
+
         <!-- I/O model -->
         <section id="io-model" class="guide-section" data-guide>
           <h2>Input &amp; output model</h2>
