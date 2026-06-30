@@ -10,7 +10,6 @@ on:
       - "android/**"
       - "ios/**"
       - "ReactNativeOpencvWrapper.podspec"
-      - "example/**"
       - ".github/workflows/native-tests.yml"
   workflow_dispatch:
 
