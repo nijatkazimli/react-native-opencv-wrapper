@@ -201,7 +201,9 @@ export class Pipeline<
     const recipe: unknown =
       typeof source === "string" ? JSON.parse(source) : source;
     if (recipe == null || typeof recipe !== "object") {
-      throw new Error("Pipeline.fromJSON: invalid recipe (expected an object)");
+      throw new TypeError(
+        "Pipeline.fromJSON: invalid recipe (expected an object)",
+      );
     }
     const { version, ops, input, output } = recipe as Partial<PipelineRecipe>;
     if (version !== 1) {
@@ -220,7 +222,7 @@ export class Pipeline<
     ops.forEach((op, index) => {
       const type = (op as { type?: unknown } | null)?.type;
       if (typeof type !== "string") {
-        throw new Error(
+        throw new TypeError(
           `Pipeline.fromJSON: invalid op at index ${index} (expected a '{ type }' object)`,
         );
       }
